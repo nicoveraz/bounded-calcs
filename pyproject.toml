@@ -1,0 +1,25 @@
+[project]
+name = "bounded-calcs"
+version = "0.1.0"
+description = "Clinical calculators that treat unknown as unknown: exact score bounds, settled/unsettled decisions, and the questions worth asking. Python library and MCP server."
+readme = "README.md"
+license = "MIT"
+authors = [{ name = "Nicolás Vera Zúñiga" }]
+requires-python = ">=3.11"
+dependencies = ["pyyaml>=6"]
+
+[project.optional-dependencies]
+mcp = ["mcp>=2"]
+
+[project.scripts]
+bounded-calcs-mcp = "bounded_calcs.mcp_server:main"
+
+[dependency-groups]
+dev = ["pytest>=8", "mcp>=2"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/bounded_calcs"]

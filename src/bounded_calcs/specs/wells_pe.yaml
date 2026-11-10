@@ -1,0 +1,74 @@
+id: wells_pe
+name: Wells criteria for pulmonary embolism (two-tier)
+version: 1
+purpose: Pretest probability of pulmonary embolism, dichotomized as PE likely / PE unlikely.
+citation: >-
+  Wells PS, Anderson DR, Rodger M, et al. Derivation of a simple clinical model to categorize
+  patients probability of pulmonary embolism: increasing the models utility with the SimpliRED
+  D-dimer. Thromb Haemost 2000;83(3):416-420. PMID 10744147.
+references:
+  - van Belle A, et al. (Christopher Study). JAMA 2006;295(2):172-179. PMID 16403929 (two-tier cutoff).
+  - NICE NG158, Table 2 (item wording).
+higher_is_higher_risk: true
+notes:
+  - Ported from calc-bounds (github.com/nicoveraz/calc-bounds), wells_pe.py. Only abstracts of
+    Wells 2000/2001 were accessible when it was written; see item notes.
+
+items:
+  - id: dvt_signs
+    label: Clinical signs of DVT (minimum leg swelling and pain on palpation of the deep veins)
+    type: boolean
+    kind: finding
+  - id: pe_most_likely
+    label: Alternative diagnosis less likely than PE (clinician judgement)
+    type: boolean
+    kind: judgment
+    question: Is an alternative diagnosis less likely than PE?
+    notes:
+      - "REVIEWED(physician): 'alternative diagnosis less likely than PE' (NICE) vs MDCalc's
+        'PE #1 diagnosis OR equally likely'."
+  - id: heart_rate
+    label: Heart rate
+    type: numeric
+    kind: measurement
+    unit: /min
+  - id: immobilization_or_surgery
+    label: Immobilisation > 3 days or surgery in the previous 4 weeks
+    type: boolean
+    kind: finding
+    notes:
+      - "REVIEWED(physician): immobilisation '> 3 days' (NICE) vs '>= 3 days' (MDCalc)."
+  - id: prior_vte
+    label: Previous DVT or PE
+    type: boolean
+    kind: finding
+  - id: hemoptysis
+    label: Haemoptysis
+    type: boolean
+    kind: finding
+  - id: malignancy
+    label: Active malignancy (on treatment, treated within 6 months, or palliative)
+    type: boolean
+    kind: finding
+
+components:
+  - {id: dvt_signs, label: Clinical signs of DVT, rule: present, item: dvt_signs, points: 3}
+  - {id: pe_most_likely, label: Alternative diagnosis less likely, rule: present, item: pe_most_likely, points: 3}
+  - id: heart_rate
+    label: Heart rate > 100
+    rule: bands
+    item: heart_rate
+    bands:
+      - {gt: 100, points: 1.5}
+      - {points: 0}
+  - {id: immobilization_or_surgery, label: Immobilisation or surgery, rule: present, item: immobilization_or_surgery, points: 1.5}
+  - {id: prior_vte, label: Previous DVT or PE, rule: present, item: prior_vte, points: 1.5}
+  - {id: hemoptysis, label: Haemoptysis, rule: present, item: hemoptysis, points: 1}
+  - {id: malignancy, label: Malignancy, rule: present, item: malignancy, points: 1}
+
+categories:
+  - name: pe_unlikely
+    label: PE unlikely (<= 4)
+  - name: pe_likely
+    label: PE likely (> 4)
+    gt: 4

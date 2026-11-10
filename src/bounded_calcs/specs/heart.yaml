@@ -1,0 +1,137 @@
+id: heart
+name: HEART score
+version: 1
+purpose: Risk of major adverse cardiac events in adult emergency department patients with chest pain.
+citation: >-
+  Six AJ, Backus BE, Kelder JC. Chest pain in the emergency room: value of the HEART score.
+  Neth Heart J 2008;16(6):191-196. doi:10.1007/BF03086144. PMID 18665203.
+references:
+  - Backus BE et al. Crit Pathw Cardiol 2010;9(3):164-169. PMID 20802272.
+  - Backus BE et al. Int J Cardiol 2013;168(3):2153-2158. PMID 23465250.
+  - Backus BE et al. Curr Cardiol Rev 2011;7(1):2-8. PMC3131711 (Table V).
+higher_is_higher_risk: true
+notes:
+  - Ported from calc-bounds (github.com/nicoveraz/calc-bounds), heart.py. Items marked
+    "REVIEWED(physician)" there are carried over as item notes and still need sign-off.
+
+items:
+  - id: heart_history
+    label: History (clinician judgement of anginal suspicion)
+    type: ordinal
+    kind: judgment
+    levels: [slightly_suspicious, moderately_suspicious, highly_suspicious]
+    question: How suspicious is the history for acute coronary syndrome (slightly, moderately, highly)?
+
+  - id: heart_ecg
+    label: ECG
+    type: ordinal
+    kind: finding
+    levels: [normal, nonspecific_repolarization, significant_st_deviation]
+    question: How is the ECG (normal, nonspecific repolarization disturbance, significant ST deviation)?
+    notes:
+      - "REVIEWED(physician): 2 points for ST depression only (Six 2008 table) or ST deviation
+        including elevation (Six 2008 text, MDCalc). Level label uses 'deviation'."
+
+  - id: age
+    label: Age
+    type: numeric
+    kind: measurement
+    unit: years
+    notes:
+      - "REVIEWED(physician): age 45 scores 1 point (Six 2008 text, MDCalc); Poldervaart 2013 gives 0."
+
+  - id: hypertension
+    label: Diagnosed and/or treated hypertension
+    type: boolean
+    kind: finding
+  - id: hypercholesterolemia
+    label: Diagnosed hypercholesterolaemia
+    type: boolean
+    kind: finding
+  - id: diabetes
+    label: Diabetes mellitus
+    type: boolean
+    kind: finding
+  - id: obesity
+    label: Obesity (BMI > 30)
+    type: boolean
+    kind: finding
+    notes:
+      - "REVIEWED(physician): BMI > 30 (Poldervaart 2013); not defined in Six 2008."
+  - id: smoking
+    label: Current or recent smoker
+    type: boolean
+    kind: finding
+    notes:
+      - "REVIEWED(physician): recency window < 1 month (Six 2008) vs <= 3 months."
+  - id: family_history_cad
+    label: Family history of coronary artery disease
+    type: boolean
+    kind: finding
+    notes:
+      - "REVIEWED(physician): definition (e.g. first-degree relative < 65)."
+  - id: atherosclerotic_disease
+    label: Known atherosclerotic disease (prior MI, revascularization, stroke, peripheral arterial disease)
+    type: boolean
+    kind: finding
+    notes:
+      - "REVIEWED(physician): whether TIA counts as atherosclerotic disease (MDCalc: yes)."
+
+  - id: heart_troponin
+    label: Initial troponin relative to the assay's normal limit
+    type: ordinal
+    kind: measurement
+    levels: [le_normal, 1_to_3x_normal, gt_3x_normal]
+    question: What was the initial troponin relative to the assay's upper normal limit?
+    notes:
+      - "REVIEWED(physician): bands 1-2x / > 2x (Six 2008) vs 1-3x / >= 3x (Backus 2011,
+        Poldervaart 2013) or > 3x (MDCalc). The boundary is resolved when the level is chosen."
+
+components:
+  - id: history
+    label: History
+    rule: levels
+    item: heart_history
+    points: {slightly_suspicious: 0, moderately_suspicious: 1, highly_suspicious: 2}
+
+  - id: ecg
+    label: ECG
+    rule: levels
+    item: heart_ecg
+    points: {normal: 0, nonspecific_repolarization: 1, significant_st_deviation: 2}
+
+  - id: age
+    label: Age
+    rule: bands
+    item: age
+    bands:
+      - {gte: 65, points: 2}
+      - {gte: 45, points: 1}
+      - {points: 0}
+
+  - id: risk_factors
+    label: Risk factors
+    rule: count
+    items: [hypertension, hypercholesterolemia, diabetes, obesity, smoking, family_history_cad]
+    points:
+      - {gte: 3, points: 2}
+      - {gte: 1, points: 1}
+      - {points: 0}
+    override: atherosclerotic_disease
+    override_points: 2
+
+  - id: troponin
+    label: Troponin
+    rule: levels
+    item: heart_troponin
+    points: {le_normal: 0, 1_to_3x_normal: 1, gt_3x_normal: 2}
+
+categories:
+  - name: low
+    label: Low (0-3)
+  - name: moderate
+    label: Moderate (4-6)
+    min: 4
+  - name: high
+    label: High (7-10)
+    min: 7
