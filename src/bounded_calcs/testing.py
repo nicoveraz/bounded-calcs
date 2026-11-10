@@ -12,6 +12,10 @@ separately from the primary source. `assert_matches_reference` makes three compa
    a category; jointly relevant if it is not decisive but, for some values of the other
    unknowns, changing it changes the category; irrelevant otherwise.
 
+4. "normal". For a numeric item with a normal range, the reference must give the same score
+   everywhere in the range (so the range crosses no threshold of the source), and the engine
+   must treat "normal" exactly like a number inside the range.
+
 The partial inputs include random ones and, for every component with more than one item,
 every combination of known, absent and unknown for its items, because interactions inside a
 component (a count of risk factors, "A or B") are where the classification is hardest.
@@ -35,7 +39,7 @@ import random
 from collections.abc import Callable, Iterator, Mapping
 from typing import Any
 
-from bounded_calcs.engine import evaluate
+from bounded_calcs.engine import _fmt, evaluate
 from bounded_calcs.spec import Calculator, band_probes
 
 Reference = Callable[[Mapping[str, Any]], tuple[float, str]]
@@ -247,6 +251,39 @@ def assert_matches_reference(
             for values in by_rest.values():
                 check({**values, **fixed}, unknown)
                 n_partial += 1
+    # 4. "normal" for numeric items.
+    for item in calc.items.values():
+        if item.normal is None:
+            continue
+        lo, hi = item.normal
+        inside = sorted({lo, hi, (lo + hi) / 2, *(x for x in domains[item.id] if lo <= x <= hi)})
+        for values in complete_inputs(calc, extra_values, limit=2000, seed=seed):
+            out = {x: ref({**values, item.id: x})[0] for x in inside}
+            if len(set(out.values())) > 1:
+                raise AssertionError(
+                    _show(
+                        f"the normal range of '{item.id}' [{lo:g}, {hi:g}] crosses a threshold "
+                        "of the reference",
+                        calc,
+                        values,
+                        [f"reference score with {item.id}={x:g}: {s}" for x, s in out.items()],
+                    )
+                )
+        expected_note = {item.id: {"range": [_fmt(lo), _fmt(hi)], "unit": item.unit}}
+        for _ in range(trials):
+            known = {i: rng.choice(domains[i]) for i in ids if i != item.id and rng.random() < 0.5}
+            got = evaluate(calc, {**known, item.id: "normal"})
+            want = evaluate(calc, {**known, item.id: (lo + hi) / 2})
+            note = got.pop("normal_assumed", None)
+            if got != want or note != expected_note:
+                raise AssertionError(
+                    _show(
+                        f"'normal' for '{item.id}' is not treated like a number in its range",
+                        calc,
+                        known,
+                        [f"normal_assumed: {note!r}", "results differ" if got != want else ""],
+                    )
+                )
     return {"complete_inputs": n_complete, "partial_inputs": n_partial}
 
 

@@ -87,9 +87,12 @@ that it depends on two things the note doesn't say, one of which only the clinic
 
 - **boolean** items: `"present"`, `"absent"` (or `true` / `false`)
 - **ordinal** items: one of the listed levels
-- **numeric** items: a number in the item's unit
+- **numeric** items: a number in the item's unit, or `"normal"` when the source says only that
+  the value is normal and the item declares a normal range (`get_schema` lists it). The result
+  then names the assumed range under `normal_assumed`
 - anything omitted, `null`, or `"unknown"` is unknown, **never** normal
-- a numeric item the source only calls "normal", with no number, is also unknown
+- a numeric item without a normal range (such as age) that the source only calls "normal" is
+  also unknown; never invent a number
 
 Each item also has a **kind**: `finding` (readable from a note), `measurement` (vitals, labs,
 age) or `judgment` (clinician only, e.g. HEART history, Wells "alternative diagnosis less

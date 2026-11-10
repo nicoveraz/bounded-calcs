@@ -46,6 +46,24 @@ def test_cites_a_source_and_says_how_it_was_verified(calc):
         )
 
 
+def test_shared_item_ids_have_one_definition():
+    # An item id used by several calculators must mean the same thing in all of them, so a
+    # client can send one finding to every calculator.
+    seen: dict[str, tuple[str, tuple]] = {}
+    for calc in CALCS.values():
+        for item in calc.items.values():
+            definition = (item.type, item.kind, item.unit, item.levels, item.normal)
+            if item.id in seen:
+                other, other_definition = seen[item.id]
+                assert definition == other_definition, (
+                    f"item '{item.id}' is defined differently in '{calc.id}' and '{other}' "
+                    f"(type, kind, unit, levels, normal): {definition} vs {other_definition}; "
+                    "use the same definition or a different id"
+                )
+            else:
+                seen[item.id] = (calc.id, definition)
+
+
 @each
 def test_judgment_items_have_a_question(calc):
     for item in calc.items.values():

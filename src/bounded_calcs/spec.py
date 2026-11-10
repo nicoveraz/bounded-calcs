@@ -10,6 +10,10 @@ Item types:
   ordinal   one of `levels`, or unknown (also used for unordered choices such as sex)
   numeric   a number in `unit`, or unknown
 
+A numeric item may declare `normal: [lo, hi]`: the range assumed when a source says only that
+the value is normal ("vital signs normal"). The range must fall inside a single band of the
+component that uses the item, so "normal" decides the item's points exactly.
+
 Item kinds (who can supply the value):
   finding      can be read from a note or chart
   measurement  a number from the chart (vitals, labs, age)
@@ -62,7 +66,7 @@ _TOP_KEYS = {
     "id", "name", "version", "purpose", "citation", "references", "higher_is_higher_risk",
     "notes", "items", "components", "categories",
 }  # fmt: skip
-_ITEM_KEYS = {"id", "label", "type", "kind", "levels", "unit", "question", "notes"}
+_ITEM_KEYS = {"id", "label", "type", "kind", "levels", "unit", "normal", "question", "notes"}
 _COMPONENT_KEYS = {
     "present": {"id", "label", "rule", "item", "points"},
     "absent": {"id", "label", "rule", "item", "points"},
@@ -95,6 +99,7 @@ class Item:
     unit: str | None = None
     question: str | None = None
     notes: tuple[str, ...] = ()
+    normal: tuple[float, float] | None = None
 
 
 @dataclass(frozen=True)
@@ -324,6 +329,17 @@ def parse(data: Any) -> Calculator:
             raise SpecError(f"{iw}: 'unknown' is reserved and cannot be a level")
         if (itype == "numeric") != ("unit" in raw):
             raise SpecError(f"{iw}: 'unit' is required for numeric items and only for them")
+        normal = None
+        if "normal" in raw:
+            if itype != "numeric":
+                raise SpecError(f"{iw}: 'normal' is only for numeric items")
+            rng = raw["normal"]
+            if not isinstance(rng, list) or len(rng) != 2:
+                raise SpecError(f"{iw}: 'normal' must be a list [lo, hi], got {rng!r}")
+            lo, hi = (_number(x, iw, "'normal'") for x in rng)
+            if lo > hi:
+                raise SpecError(f"{iw}: 'normal' must be [lo, hi] with lo <= hi, got {rng!r}")
+            normal = (lo, hi)
         items[iid] = Item(
             id=iid,
             label=_text(_req(raw, "label", iw), iw, "label"),
@@ -333,6 +349,7 @@ def parse(data: Any) -> Calculator:
             unit=_text(raw["unit"], iw, "unit") if "unit" in raw else None,
             question=_text(raw["question"], iw, "question") if "question" in raw else None,
             notes=_texts(raw.get("notes", []), iw, "notes"),
+            normal=normal,
         )
 
     components: list[Component] = []
@@ -481,7 +498,7 @@ def parse(data: Any) -> Calculator:
     if not isinstance(higher, bool):
         raise SpecError(f"{where}: higher_is_higher_risk must be true or false")
 
-    return Calculator(
+    calc = Calculator(
         id=cid,
         name=_text(_req(data, "name", where), where, "name"),
         version=version,
@@ -494,6 +511,20 @@ def parse(data: Any) -> Calculator:
         categories=tuple(categories),
         notes=_texts(data.get("notes", []), where, "notes"),
     )
+    for item in items.values():
+        if item.normal is None:
+            continue
+        bands = calc.numeric_bands(item.id)
+        lo, hi = item.normal
+        band_lo = next(b for b in bands if b.matches(lo))
+        band_hi = next(b for b in bands if b.matches(hi))
+        if band_lo is not band_hi:
+            raise SpecError(
+                f"{where} item '{item.id}': normal range [{lo:g}, {hi:g}] straddles a threshold "
+                f"({lo:g} falls in '{band_lo.describe(item.unit)}', {hi:g} in "
+                f"'{band_hi.describe(item.unit)}'); a normal range must fall in a single band"
+            )
+    return calc
 
 
 def load_file(path: str | Path) -> Calculator:

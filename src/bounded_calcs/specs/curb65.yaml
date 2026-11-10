@@ -29,7 +29,15 @@ items:
     type: numeric
     kind: measurement
     unit: mmol/L
+    normal: [2.5, 7]
     notes:
+      - "Normal range 2.5 to 7 mmol/L, used when the source says only that it is
+        normal. Taken from calc-bounds (params.py, absent_means), reviewed by the author on
+        2026-09-27; it crosses no threshold of any calculator that uses this item."
+      - "The normal range assumes the laboratory's upper reference limit for urea is at most
+        7 mmol/L. Where it is higher, a urea reported only as normal may still be above 7 and
+        score a point: send the value instead. Open question:
+        https://github.com/nicoveraz/bounded-calcs/issues/20"
       - Urea in mmol/L. From BUN in mg/dL divide by 2.8014; from urea in mg/dL divide by 6.006.
         The caller converts; a bare "mg/dL" without the analyte is ambiguous.
       - "REVIEWED(physician): the original > 7 mmol/L is applied, which is BUN > 19.6 mg/dL.
@@ -39,16 +47,31 @@ items:
     type: numeric
     kind: measurement
     unit: /min
+    normal: [12, 20]
+    notes:
+      - "Normal range 12 to 20 /min, used when the source says only that it is
+        normal. Taken from calc-bounds (params.py, absent_means), reviewed by the author on
+        2026-09-27; it crosses no threshold of any calculator that uses this item."
   - id: sbp
     label: Systolic blood pressure
     type: numeric
     kind: measurement
     unit: mmHg
+    normal: [101, 139]
+    notes:
+      - "Normal range 101 to 139 mmHg, used when the source says only that it is
+        normal. Taken from calc-bounds (params.py, absent_means), reviewed by the author on
+        2026-09-27; it crosses no threshold of any calculator that uses this item."
   - id: dbp
     label: Diastolic blood pressure
     type: numeric
     kind: measurement
     unit: mmHg
+    normal: [61, 89]
+    notes:
+      - "Normal range 61 to 89 mmHg, used when the source says only that it is
+        normal. Taken from calc-bounds (params.py, absent_means), reviewed by the author on
+        2026-09-27; it crosses no threshold of any calculator that uses this item."
   - id: age
     label: Age
     type: numeric
