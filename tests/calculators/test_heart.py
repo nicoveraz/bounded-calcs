@@ -144,3 +144,24 @@ def test_typical_triage_note_is_not_settled():
         "family_history_cad",
         "atherosclerotic_disease",
     }
+
+
+def test_risk_factors_that_matter_together_are_not_called_irrelevant():
+    # Regression (found by replaying the calc-bounds cohort, case heart-0017). Known: history
+    # 1, ECG 0, troponin 1, age 30 (0), obesity present (1 risk factor). Hypertension,
+    # hypercholesterolaemia and smoking are unknown. Score = 2 + risk points; with 1 or 2
+    # factors risk is 1 point (3 = low), with 3 or more it is 2 (4 = moderate). No single
+    # factor settles the category, but any two of them present make it moderate, so each one
+    # changes the category when exactly one of the others is present.
+    known = ZERO | {
+        "heart_history": "moderately_suspicious",
+        "heart_troponin": "1_to_3x_normal",
+        "obesity": "present",
+    }
+    for k in ("hypertension", "hypercholesterolemia", "smoking"):
+        del known[k]
+    r = evaluate(CALC, known)
+    assert not r["settled"] and r["possible_categories"] == ["low", "moderate"]
+    assert r["decisive_unknowns"] == []
+    assert r["jointly_relevant_unknowns"] == ["hypertension", "hypercholesterolemia", "smoking"]
+    assert r["irrelevant_unknowns"] == []

@@ -8,7 +8,13 @@ separately from the primary source. `assert_matches_reference` makes three compa
 2. Partial inputs. For random sets of known items, the engine's score range and possible
    categories must equal what trying every completion in the reference gives.
 3. Unknown items. The engine's decisive / jointly relevant / irrelevant lists must match the
-   same brute-force enumeration.
+   same brute-force enumeration. An unknown item is decisive if knowing it alone can rule out
+   a category; jointly relevant if it is not decisive but, for some values of the other
+   unknowns, changing it changes the category; irrelevant otherwise.
+
+The partial inputs include random ones and, for every component with more than one item,
+every combination of known, absent and unknown for its items, because interactions inside a
+component (a count of risk factors, "A or B") are where the classification is hardest.
 
 One call therefore checks both the spec and the bounding engine against the source. It cannot
 catch a threshold that is wrong in the same way in the spec and in the reference: boundary
@@ -140,17 +146,7 @@ def assert_matches_reference(
         )
 
     # 2 and 3. Partial inputs: bounds and the classification of unknown items.
-    rng = random.Random(seed)
-    for _ in range(trials):
-        order = ids[:]
-        rng.shuffle(order)
-        unknown: list[str] = []
-        size = 1
-        for i in order[: rng.randint(0, len(order))]:
-            if size * len(domains[i]) <= max_completions:
-                unknown.append(i)
-                size *= len(domains[i])
-        known = {i: rng.choice(domains[i]) for i in ids if i not in unknown}
+    def check(known: dict[str, Any], unknown: list[str]) -> None:
         combos = list(itertools.product(*(domains[i] for i in unknown)))
         outcomes = [ref({**known, **dict(zip(unknown, combo))}) for combo in combos]
         scores = {s for s, _ in outcomes}
@@ -170,14 +166,14 @@ def assert_matches_reference(
         outcomes_by_item: dict[str, dict[Any, list[str]]] = {}
         for pos, item_id in enumerate(unknown):
             cats_by: dict[Any, set[str]] = {}
-            scores_by: dict[Any, set[float]] = {}
-            for combo, (s, c) in zip(combos, outcomes):
+            cats_by_rest: dict[tuple[Any, ...], set[str]] = {}
+            for combo, (_, c) in zip(combos, outcomes):
                 cats_by.setdefault(combo[pos], set()).add(c)
-                scores_by.setdefault(combo[pos], set()).add(s)
+                cats_by_rest.setdefault(combo[:pos] + combo[pos + 1 :], set()).add(c)
             narrows = any(len(c) < len(cats) for c in cats_by.values())
-            moves = any(s != scores for s in scores_by.values())
+            changes = any(len(c) > 1 for c in cats_by_rest.values())
             kind = (
-                "irrelevant" if settled else "decisive" if narrows else "jointly" if moves
+                "irrelevant" if settled else "decisive" if narrows else "jointly" if changes
                 else "irrelevant"
             )  # fmt: skip
             classes[kind].add(item_id)
@@ -219,4 +215,72 @@ def assert_matches_reference(
                     wrong,
                 )
             )
-    return {"complete_inputs": n_complete, "partial_inputs": trials}
+
+    rng = random.Random(seed)
+    n_partial = 0
+    for _ in range(trials):
+        order = ids[:]
+        rng.shuffle(order)
+        unknown: list[str] = []
+        size = 1
+        for i in order[: rng.randint(0, len(order))]:
+            if size * len(domains[i]) <= max_completions:
+                unknown.append(i)
+                size *= len(domains[i])
+        check({i: rng.choice(domains[i]) for i in ids if i not in unknown}, unknown)
+        n_partial += 1
+
+    # Interactions inside one component: every pattern of its items, against one setting of
+    # the other items for each score they can add.
+    for comp in calc.components:
+        if len(comp.items) < 2:
+            continue
+        others = [i for i in ids if i not in comp.items]
+        baseline = {i: domains[i][0] for i in comp.items}
+        by_rest: dict[float, dict[str, Any]] = {}
+        for values in _sample_assignments(others, domains, rng):
+            rest = ref({**values, **baseline})[0]
+            by_rest.setdefault(rest, values)
+        for pattern in _component_patterns(calc, comp, domains):
+            unknown = [i for i, v in pattern.items() if v is None]
+            fixed = {i: v for i, v in pattern.items() if v is not None}
+            for values in by_rest.values():
+                check({**values, **fixed}, unknown)
+                n_partial += 1
+    return {"complete_inputs": n_complete, "partial_inputs": n_partial}
+
+
+def _sample_assignments(
+    ids: list[str], domains: Mapping[str, list[Any]], rng: random.Random, limit: int = 20_000
+) -> Iterator[dict[str, Any]]:
+    """Every assignment of `ids` when there are at most `limit`, otherwise `limit` random ones."""
+    if math.prod(len(domains[i]) for i in ids) <= limit:
+        for combo in itertools.product(*(domains[i] for i in ids)):
+            yield dict(zip(ids, combo))
+    else:
+        for _ in range(limit):
+            yield {i: rng.choice(domains[i]) for i in ids}
+
+
+def _component_patterns(
+    calc: Calculator, comp: Any, domains: Mapping[str, list[Any]]
+) -> Iterator[dict[str, Any]]:
+    """Known and unknown patterns for the items of one component (None means unknown).
+
+    For a count, members are interchangeable, so one pattern per number of present, absent
+    and unknown members is enough; the override item takes each of its states."""
+    if comp.rule == "count":
+        members = [i for i in comp.items if i != comp.override]
+        overrides = [True, False, None] if comp.override else [None]
+        m = len(members)
+        for present in range(m + 1):
+            for absent in range(m - present + 1):
+                states = [True] * present + [False] * absent + [None] * (m - present - absent)
+                for ov in overrides:
+                    pattern = dict(zip(members, states))
+                    if comp.override:
+                        pattern[comp.override] = ov
+                    yield pattern
+        return
+    for combo in itertools.product(*([*domains[i], None] for i in comp.items)):
+        yield dict(zip(comp.items, combo))

@@ -103,14 +103,7 @@ def _component_points(comp: Component, state: State) -> set[float]:
         return {comp.bands[v].points} if v is not None else {b.points for b in comp.bands}
     if comp.rule == "any_of":
         assert comp.points is not None
-
-        def met(i: str) -> bool | None:
-            v = state[i]
-            if v is None:
-                return None
-            return bool(v) if i not in comp.conditions else v == 0
-
-        flags = [met(i) for i in comp.items]
+        flags = [_condition_met(comp, state, i) for i in comp.items]
         if any(f is True for f in flags):
             return {comp.points}
         return {0.0, comp.points} if any(f is None for f in flags) else {0.0}
@@ -118,11 +111,7 @@ def _component_points(comp: Component, state: State) -> set[float]:
     members = [i for i in comp.items if i != comp.override]
     known = sum(1 for i in members if state[i] is True)
     unknown = sum(1 for i in members if state[i] is None)
-
-    def by_count(n: int) -> float:
-        return next(b.points for b in comp.bands if b.op is None or n >= (b.value or 0))
-
-    from_count = {by_count(n) for n in range(known, known + unknown + 1)}
+    from_count = {_count_points(comp, n) for n in range(known, known + unknown + 1)}
     if comp.override is None:
         return from_count
     ov = state[comp.override]
@@ -134,12 +123,74 @@ def _component_points(comp: Component, state: State) -> set[float]:
     return from_count | {comp.override_points}
 
 
-def _reachable_scores(calc: Calculator, state: State) -> set[float]:
+def _condition_met(comp: Component, state: State, item_id: str) -> bool | None:
+    """Whether one condition of an any_of component is met (None when unknown)."""
+    v = state[item_id]
+    if v is None:
+        return None
+    return bool(v) if item_id not in comp.conditions else v == 0
+
+
+def _count_points(comp: Component, n: int) -> float:
+    """Points of a count component when n of its members are present."""
+    return next(b.points for b in comp.bands if b.op is None or n >= (b.value or 0))
+
+
+def _reachable_scores(calc: Calculator, state: State, skip: Component | None = None) -> set[float]:
     scores = {0.0}
     for comp in calc.components:
+        if comp is skip:
+            continue
         pts = _component_points(comp, state)
         scores = {s + p for s in scores for p in pts}
     return scores
+
+
+def _flip_pairs(comp: Component, state: State, item_id: str) -> set[tuple[float, float]]:
+    """Pairs of points the component can take for two values of the unknown `item_id`, with
+    the component's other unknown items held at the same values."""
+    if len(comp.items) == 1:
+        pts = sorted(_component_points(comp, state))
+        return {(a, b) for a in pts for b in pts if a < b}
+    if comp.rule == "any_of":
+        assert comp.points is not None
+        others = [i for i in comp.items if i != item_id]
+        if any(_condition_met(comp, state, i) is True for i in others):
+            return set()
+        return {(0.0, comp.points)}
+    # count
+    members = [i for i in comp.items if i != comp.override]
+    if item_id == comp.override:
+        assert comp.override_points is not None
+        known = sum(1 for i in members if state[i] is True)
+        unknown = sum(1 for i in members if state[i] is None)
+        return {
+            (comp.override_points, _count_points(comp, n))
+            for n in range(known, known + unknown + 1)
+        }
+    if comp.override is not None and state[comp.override] is True:
+        return set()
+    others = [i for i in members if i != item_id]
+    known = sum(1 for i in others if state[i] is True)
+    unknown = sum(1 for i in others if state[i] is None)
+    return {
+        (_count_points(comp, n), _count_points(comp, n + 1))
+        for n in range(known, known + unknown + 1)
+    }
+
+
+def _changes_category(calc: Calculator, state: State, item_id: str) -> bool:
+    """True if, for some values of the other unknown items, changing `item_id` changes the
+    category. Exact: components are independent, so the rest of the score ranges over the
+    sumset of the other components while this component flips between a pair of values."""
+    comp = calc.component_of(item_id)
+    pairs = [(a, b) for a, b in _flip_pairs(comp, state, item_id) if a != b]
+    if not pairs:
+        return False
+    rest = _reachable_scores(calc, state, skip=comp)
+    return any(
+        calc.category(r + a).name != calc.category(r + b).name for r in rest for a, b in pairs
+    )
 
 
 def _categories(calc: Calculator, state: State) -> set[str]:
@@ -186,18 +237,14 @@ def evaluate(calc: Calculator, inputs: dict[str, Any] | None = None) -> dict[str
             irrelevant.append(iid)
             continue
         outcomes = []
-        score_sets = []
         for v in _domain(calc, item):
-            sub_state = {**state, iid: v}
-            score_sets.append(_reachable_scores(calc, sub_state))
-            sub = calc.by_risk({calc.category(s).name for s in score_sets[-1]})
+            sub = calc.by_risk(_categories(calc, {**state, iid: v}))
             outcomes.append({"if": _describe_value(calc, item, v), "possible_categories": sub})
         narrows = any(len(o["possible_categories"]) < len(cats) for o in outcomes)
         if not narrows:
-            # Alone it cannot change the category set; it may still matter together with
-            # other unknowns if it can move the score at all.
-            moves_score = any(s != scores for s in score_sets)
-            (jointly if moves_score else irrelevant).append(iid)
+            # Knowing it alone cannot rule out a category, but it may still change the
+            # category for some values of the other unknowns.
+            (jointly if _changes_category(calc, state, iid) else irrelevant).append(iid)
             continue
         settling = sum(1 for o in outcomes if len(o["possible_categories"]) == 1)
         mean_left = sum(len(o["possible_categories"]) for o in outcomes) / len(outcomes)
