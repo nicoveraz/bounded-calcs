@@ -115,11 +115,7 @@ number and inequality from the source.
 
 These change the engine or the input format, so they are not for unattended work.
 
-1. **"Normal" for numeric items ([#9](https://github.com/nicoveraz/bounded-calcs/issues/9)).** In the paper, a note that says "heart rate normal" maps to
-   an interval that does not straddle any threshold (calc-bounds `absent_means`). Here numeric
-   items accept only a number or unknown, so such a note costs a question. Needs: a declared
-   normal interval per item, a `normal` input value, and a check that the interval crosses no
-   threshold.
+1. ~~"Normal" for numeric items~~ ([#9](https://github.com/nicoveraz/bounded-calcs/issues/9)): done (PR #18).
 2. **Plausible ranges for numeric items ([#10](https://github.com/nicoveraz/bounded-calcs/issues/10)).** Reject impossible values (age 500,
    SpO2 0.97) instead of scoring them. calc-bounds has ranges in `calculators/params.py`.
 3. **Formula calculators ([#11](https://github.com/nicoveraz/bounded-calcs/issues/11))** (Cockcroft-Gault and similar). The score is continuous.
@@ -127,10 +123,10 @@ These change the engine or the input format, so they are not for unattended work
    allowed ranges (`bounds/__init__.py`), so this depends on item 2.
 4. **Categories that depend on an item ([#12](https://github.com/nicoveraz/bounded-calcs/issues/12))**, such as sex-specific cut-offs, and items
    shared by two components.
-5. **Laboratory reference ranges for "normal" ([#20](https://github.com/nicoveraz/bounded-calcs/issues/20)).**
-   "Urea normal" assumes the laboratory's upper limit is at most 7 mmol/L. Proposed: interval
-   inputs in the engine, normal ranges allowed to cross a threshold, and site-configurable
-   reference ranges.
+5. ~~Laboratory reference ranges for "normal"~~ ([#20](https://github.com/nicoveraz/bounded-calcs/issues/20)):
+   done. Numeric items accept ranges, normal ranges may cross a threshold, and sites can set
+   their own ranges (`--normal-ranges`). The urea default (2.5 to 8 mmol/L) crosses 7 on
+   purpose, as decided on 2026-11-10.
 
 ## Distribution ([#13](https://github.com/nicoveraz/bounded-calcs/issues/13))
 

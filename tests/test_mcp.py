@@ -43,3 +43,39 @@ def test_mcp_roundtrip():
     assert ev["settled"] is False
     assert [d["item"] for d in ev["decisive_unknowns"]] == ["dvt_signs", "pe_most_likely"]
     assert bad.is_error and "Available" in bad.content[0].text
+
+
+async def _site_session(path):
+    params = StdioServerParameters(
+        command=sys.executable,
+        args=["-m", "bounded_calcs.mcp_server", "--normal-ranges", str(path)],
+    )
+    async with stdio_client(params) as (r, w), ClientSession(r, w) as s:
+        await s.initialize()
+        findings = {"confusion": "absent", "resp_rate": 18, "sbp": 120, "dbp": 80, "age": 70,
+                    "urea": "normal"}
+        return _payload(
+            await s.call_tool("evaluate", {"calculator_id": "curb65", "findings": findings})
+        )
+
+
+def test_site_normal_ranges_file(tmp_path):
+    # A laboratory whose urea upper limit is 7 mmol/L: "urea normal" settles CURB-65 at 1 (low).
+    path = tmp_path / "ranges.yaml"
+    path.write_text("urea: [2.5, 7.0]\n", encoding="utf-8")
+    r = asyncio.run(_site_session(path))
+    assert r["settled"] and r["category"] == "low"
+    assert r["normal_assumed"]["urea"]["source"] == "site"
+
+
+@pytest.mark.parametrize("content", ["urea: [8, 2]\n", "ureaa: [2.5, 7]\n", "- urea\n"])
+def test_bad_site_normal_ranges_file_stops_the_server(tmp_path, content):
+    import subprocess
+
+    path = tmp_path / "ranges.yaml"
+    path.write_text(content, encoding="utf-8")
+    out = subprocess.run(
+        [sys.executable, "-m", "bounded_calcs.mcp_server", "--normal-ranges", str(path)],
+        capture_output=True, text=True, timeout=60,
+    )
+    assert out.returncode == 1 and "bounded-calcs-mcp:" in out.stderr

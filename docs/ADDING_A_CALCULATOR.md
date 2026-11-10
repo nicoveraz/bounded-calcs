@@ -129,12 +129,13 @@ inventing a clinician's judgment is not.
   must copy the existing definition exactly: type, kind, unit, levels and `normal`. A test
   enforces this.
 - **Normal range.** A numeric item that notes often describe only as "normal" (vital signs,
-  routine laboratory values) may declare `normal: [lo, hi]`: the range assumed when a note
-  says "vital signs normal". When the item id already exists in another spec, copy its range
-  and its note. Otherwise, add a range only if a source or calc-bounds (`params.py`,
-  `absent_means`) gives one, with a `TODO(physician-review):` note saying where it came from.
-  The range must fall inside one band of the component; the loader and the reference check
-  both enforce this. Never add a range for age, weight or other values that are never just
+  routine laboratory values) may declare `normal: [lo, hi]`: the default range assumed when a
+  note says "vital signs normal". A site can replace it with its own laboratory's range. When
+  the item id already exists in another spec, copy its range and its note. Otherwise, add a
+  range only if a source or calc-bounds (`params.py`, `absent_means`) gives one, with a
+  `TODO(physician-review):` note saying where it came from. A range may cross a threshold:
+  then "normal" narrows the item without deciding it, and the engine asks for the value when
+  it matters. Never add a range for age, weight or other values that are never just
   "normal".
 - The applicability gate goes in `purpose` and `notes`. Do not add items for it.
 
@@ -269,8 +270,8 @@ All tests must pass, with none skipped that passed before. What a failure means:
 | `SpecError: ... unknown key(s)` | a key is misspelled or not part of the format | fix the key; do not extend the format |
 | `SpecError: ... must be text` or `expected a mapping` | YAML did not read a value as text | wrap it in double quotes |
 | `SpecError: ... already used by component` | one item in two components | the calculator does not fit: stop and ask |
-| `SpecError: ... straddles a threshold` | a normal range crosses a band boundary | narrow the range so it fits in one band, or drop it |
-| `the normal range of ... crosses a threshold of the reference` | the range crosses a threshold of the source, even if the spec's bands do not | re-read the source thresholds; fix the spec or the range |
+| `yaml.scanner.ScannerError: mapping values are not allowed here` | a text value contains `: ` and is not quoted | wrap the whole value in double quotes |
+| `SpecError: ... unknown key(s)` naming part of a label | a label with a comma inside a one-line `{...}` mapping was split | wrap the label in double quotes |
 | `spec and reference disagree on a complete input` | the YAML and `reference` differ for the inputs shown | re-read the source for that item; fix the side that is wrong |
 | `engine and reference disagree on a partial input` | should not happen once complete inputs agree | do not touch the engine: stop and report the message |
 | `no input ever reaches [...]` | a category cut-off is impossible | check the cut-offs in the source |
