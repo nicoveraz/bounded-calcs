@@ -1,0 +1,44 @@
+# Runs the test suite on every push to main and on every pull request, on each supported
+# Python version, and smoke-tests the built wheel and sdist as installed packages.
+# Actions are pinned to the same commits as publish.yml.
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+      - run: uv sync --locked
+      - run: uv run python --version
+      - run: uv run pytest -q
+
+  package:
+    name: Build and smoke-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+      - run: uv build
+      - run: |
+          uv run --isolated --no-project --with dist/*.whl --with "mcp>=2,<3" scripts/smoke_test.py
+          uv run --isolated --no-project --with dist/*.tar.gz --with "mcp>=2,<3" scripts/smoke_test.py

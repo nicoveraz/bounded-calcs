@@ -1,5 +1,8 @@
 # bounded-calcs
 
+[![Tests](https://github.com/nicoveraz/bounded-calcs/actions/workflows/tests.yml/badge.svg)](https://github.com/nicoveraz/bounded-calcs/actions/workflows/tests.yml)
+[![PyPI](https://img.shields.io/pypi/v/bounded-calcs)](https://pypi.org/project/bounded-calcs/)
+
 Clinical calculators that treat **unknown as unknown**.
 
 Most calculator tools, and the LLM benchmarks built on them, take a complete input. When a
