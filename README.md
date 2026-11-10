@@ -97,8 +97,8 @@ likely"). Clients should never infer judgment items from text.
 | field | meaning |
 |---|---|
 | `decisive_unknowns` | knowing this item alone could narrow the possible categories; ask these, in order |
-| `jointly_relevant_unknowns` | can move the score but cannot change the category on its own; may matter together |
-| `irrelevant_unknowns` | cannot change the category (always the case for every unknown once settled) |
+| `jointly_relevant_unknowns` | knowing it alone cannot rule out a category, but for some values of the other unknowns it changes the category; ask these when no decisive unknown is left |
+| `irrelevant_unknowns` | cannot change the category, whatever the other unknowns turn out to be (every unknown, once the result is settled) |
 
 ## MCP server
 
@@ -161,7 +161,10 @@ assert_matches_reference(load_file("curb65.yaml"), reference)
 
 Components are independent, so the reachable scores are exactly the sumset of each
 component's reachable points; there is no sampling and no LLM in the loop. An unknown item is
-decisive if some value of it removes at least one category from the possible set. Decisive
+decisive if some value of it removes at least one category from the possible set, and
+jointly relevant if it is not decisive but, for some values of the other unknowns, changing it
+changes the category. Whenever the result is not settled, at least one unknown is decisive or
+jointly relevant, so there is always something to ask. Decisive
 items are ordered by how often an answer settles the decision, then by how much it narrows on
 average, with data items before judgments when otherwise equal.
 

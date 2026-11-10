@@ -215,3 +215,30 @@ def test_schema_shape():
     assert kinds["heart_history"] == "judgment"
     assert [c["name"] for c in s["categories"]] == ["low", "moderate", "high"]
     assert "normal" in s["input_rules"]
+
+
+def test_count_component_never_leaves_an_unsettled_result_without_questions():
+    # Every pattern of present / absent / unknown risk factors in HEART, combined with every
+    # total the other components can add, must offer something to ask whenever the result is
+    # not settled. (0.1.0 could return an unsettled result with nothing to ask.)
+    calc = HEART
+    factors = ["hypertension", "hypercholesterolemia", "diabetes", "obesity", "smoking",
+               "family_history_cad", "atherosclerotic_disease"]
+    rest_settings = [  # history, ECG, troponin, age: totals 0 to 8
+        {"heart_history": h, "heart_ecg": e, "heart_troponin": t, "age": a}
+        for h in ("slightly_suspicious", "highly_suspicious")
+        for e in ("normal", "nonspecific_repolarization", "significant_st_deviation")
+        for t in ("le_normal", "gt_3x_normal")
+        for a in (30, 50, 70)
+    ]
+    import itertools
+
+    checked = 0
+    for states in itertools.product(("present", "absent", None), repeat=len(factors)):
+        pattern = {f: s for f, s in zip(factors, states) if s is not None}
+        for rest in rest_settings:
+            r = evaluate(calc, rest | pattern)
+            if not r["settled"]:
+                assert r["decisive_unknowns"] or r["jointly_relevant_unknowns"], rest | pattern
+            checked += 1
+    assert checked == 3 ** 7 * 36
