@@ -22,6 +22,7 @@ message with `Closes #N`.
 | `wells_pe` | Wells criteria for PE, two-tier | [A] Wells 2000; [A] van Belle 2006; [S] NICE NG158 | reviewed 2026-09-27 (calc-bounds) | 0 |
 | `perc` | PERC rule | [A] Kline 2004; [A] Kline 2008 | reviewed 2026-09-27 (calc-bounds) | 0 |
 | `curb65` | CURB-65 | [P] Lim 2003 | reviewed 2026-09-27 (calc-bounds) | 0 |
+| `qsofa` | qSOFA | [A] Seymour 2016; [P] Singer 2016 (Sepsis-3) | reviewed 2026-09-27 (calc-bounds) | 0 |
 
 "Reviewed (calc-bounds)" means the readings were accepted by the author, an emergency
 physician, as recorded in `docs/CALCULATOR_NOTES.md` of `nicoveraz/calc-bounds`.
@@ -50,23 +51,7 @@ All citations below were checked in PubMed on 2026-11-10. "Structure hints" desc
 of the score so you know which rules to expect. They are **not** criteria: take every item,
 number and inequality from the source.
 
-### 1. qSOFA: `qsofa` — ready ([#1](https://github.com/nicoveraz/bounded-calcs/issues/1))
-
-- Sources: Seymour CW et al. JAMA 2016;315(8):762-774. doi:10.1001/jama.2016.0288.
-  PMID 26903335, free full text PMC5433435. Singer M et al. (Sepsis-3). JAMA
-  2016;315(8):801-810. doi:10.1001/jama.2016.0287. PMID 26903338, free full text PMC4968574.
-- Already implemented and reviewed in calc-bounds: `src/calc_bounds/calculators/qsofa.py` and
-  the "qSOFA" section of `docs/CALCULATOR_NOTES.md`. Read both and port them.
-- Structure hints: three criteria, one point each, two categories; two numeric items and one
-  boolean item. Rules: `bands` and `present`.
-- Reuse the item ids `resp_rate` and `sbp` (same definition and unit as in `curb65`). The
-  mental status item is **not** CURB-65 `confusion`: use the id and definition from calc-bounds.
-- calc-bounds records the mental status reading as reviewed (item 10 of its notes). Carry it
-  over as a `REVIEWED(physician):` note and say so in your report. This is the only case in
-  which you write that marker.
-- Carry the two notes of the calc-bounds "qSOFA" section into the spec `notes`.
-
-### 2. NEXUS cervical spine criteria: `nexus` — ready ([#2](https://github.com/nicoveraz/bounded-calcs/issues/2))
+### 1. NEXUS cervical spine criteria: `nexus` — ready ([#2](https://github.com/nicoveraz/bounded-calcs/issues/2))
 
 - Source: Hoffman JR et al. N Engl J Med 2000;343(2):94-99.
   doi:10.1056/NEJM200007133430203. PMID 10891516. The abstract lists the five criteria; the
@@ -78,7 +63,7 @@ number and inequality from the source.
   every item whose definition you could not read.
 - Applies to blunt trauma patients: put the gate in `purpose` and `notes`.
 
-### 3. Wells criteria for DVT: `wells_dvt` — needs decision D1 ([#3](https://github.com/nicoveraz/bounded-calcs/issues/3))
+### 2. Wells criteria for DVT: `wells_dvt` — needs decision D1 ([#3](https://github.com/nicoveraz/bounded-calcs/issues/3))
 
 - Sources: Wells PS et al. Lancet 1997;350(9094):1795-1798.
   doi:10.1016/S0140-6736(97)08140-3. PMID 9428249 (three-tier). Wells PS et al. N Engl J Med
@@ -89,7 +74,7 @@ number and inequality from the source.
   not have the same item list; several examination findings carry a threshold in their
   wording (make those boolean, with the threshold in the label).
 
-### 4. Sore throat score: `mcisaac` or `centor` — needs decision D2 ([#4](https://github.com/nicoveraz/bounded-calcs/issues/4))
+### 3. Sore throat score: `mcisaac` or `centor` — needs decision D2 ([#4](https://github.com/nicoveraz/bounded-calcs/issues/4))
 
 - Sources: Centor RM et al. Med Decis Making 1981;1(3):239-246.
   doi:10.1177/0272989X8100100304. PMID 6763125 (the abstract lists the four variables).
@@ -99,14 +84,14 @@ number and inequality from the source.
   item named for the symptom. The modified score adds age bands, one of them negative. The
   score has a lower age limit: gate in `purpose` and `notes`.
 
-### 5. CHA2DS2-VASc: `cha2ds2_vasc` — needs decision D3 ([#5](https://github.com/nicoveraz/bounded-calcs/issues/5))
+### 4. CHA2DS2-VASc: `cha2ds2_vasc` — needs decision D3 ([#5](https://github.com/nicoveraz/bounded-calcs/issues/5))
 
 - Source: Lip GYH et al. Chest 2010;137(2):263-272. doi:10.1378/chest.09-1584.
   PMID 19762550. The abstract does not contain the points table; you need the full text.
 - Structure hints: age has two bands; one item is worth more than the others; sex is an
   ordinal item with two levels (`levels` rule).
 
-### 6. Canadian CT Head Rule: `canadian_ct_head` — needs decision D4 ([#6](https://github.com/nicoveraz/bounded-calcs/issues/6))
+### 5. Canadian CT Head Rule: `canadian_ct_head` — needs decision D4 ([#6](https://github.com/nicoveraz/bounded-calcs/issues/6))
 
 - Source: Stiell IG et al. Lancet 2001;357(9266):1391-1396.
   doi:10.1016/S0140-6736(00)04561-X. PMID 11356436.
