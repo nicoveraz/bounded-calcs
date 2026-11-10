@@ -60,9 +60,9 @@ items:
     type: boolean
     kind: finding
     notes:
-      - "TODO(physician-review): figure 3B says history of LOC; figure 2B splits the node into
-        no versus yes or suspected. The reading implemented counts suspected loss of
-        consciousness as present. The alternative is to count only a definite history."
+      - "REVIEWED(physician): figure 3B says history of LOC; figure 2B splits the node into no
+        versus yes or suspected. Suspected loss of consciousness counts as present (confirmed
+        by the author, an emergency physician, on 2026-11-10)."
   - id: vomiting
     label: History of vomiting
     type: boolean

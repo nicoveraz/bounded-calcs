@@ -23,8 +23,8 @@ message with `Closes #N`.
 | `perc` | PERC rule | [A] Kline 2004; [A] Kline 2008 | reviewed 2026-09-27 (calc-bounds) | 0 |
 | `curb65` | CURB-65 | [P] Lim 2003 | reviewed 2026-09-27 (calc-bounds) | 0 |
 | `qsofa` | qSOFA | [A] Seymour 2016; [P] Singer 2016 (Sepsis-3) | reviewed 2026-09-27 (calc-bounds) | 0 |
-| `pecarn_head_under2` | PECARN head injury rule, under 2 years | [P] Kuppermann 2009 and 2014 erratum | not yet reviewed | 1 |
-| `pecarn_head_2plus` | PECARN head injury rule, 2 years and older | [P] Kuppermann 2009 and 2014 erratum | not yet reviewed | 1 |
+| `pecarn_head_under2` | PECARN head injury rule, under 2 years | [P] Kuppermann 2009 and 2014 erratum | open readings confirmed 2026-11-10 | 0 |
+| `pecarn_head_2plus` | PECARN head injury rule, 2 years and older | [P] Kuppermann 2009 and 2014 erratum | open readings confirmed 2026-11-10 | 0 |
 
 "Reviewed (calc-bounds)" means the readings were accepted by the author, an emergency
 physician, as recorded in `docs/CALCULATOR_NOTES.md` of `nicoveraz/calc-bounds`.

@@ -54,10 +54,10 @@ items:
     type: boolean
     kind: finding
     notes:
-      - "TODO(physician-review): figure 3A says palpable skull fracture; figure 2A and panel 1
+      - "REVIEWED(physician): figure 3A says palpable skull fracture; figure 2A and panel 1
         define the variable as palpable or unclear on the basis of swelling or distortion of
-        the scalp. The reading implemented counts an unclear examination as present. The
-        alternative is to count only a palpable fracture."
+        the scalp. An unclear examination counts as present (confirmed by the author, an
+        emergency physician, on 2026-11-10)."
   - id: nonfrontal_scalp_hematoma
     label: Occipital, parietal or temporal scalp haematoma
     type: boolean
