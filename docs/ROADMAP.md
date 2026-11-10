@@ -152,8 +152,6 @@ alone depends only on PyYAML. The release procedure is in `docs/RELEASING.md`.
 
 ## Housekeeping
 
-- CI ([#14](https://github.com/nicoveraz/bounded-calcs/issues/14), ready): run `uv run pytest` on every push and pull request. Check the current
-  action versions before writing the workflow.
 - Repository metadata ([#15](https://github.com/nicoveraz/bounded-calcs/issues/15)): `CITATION.cff` modelled on the one in calc-bounds, the
   GitHub "About" description (currently empty), and a link from the arXiv listing at the
   paper's next version.

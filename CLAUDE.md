@@ -96,6 +96,7 @@ docs/
   ROADMAP.md              what is built, what is next, open decisions
   RELEASING.md            how a version reaches PyPI
 scripts/smoke_test.py     checks a built wheel or sdist as an installed package
+.github/workflows/tests.yml     runs the tests on every push to main and every pull request
 .github/workflows/publish.yml   tests, builds and publishes when a version tag is pushed
 ```
 
