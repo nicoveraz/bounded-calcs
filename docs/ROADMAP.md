@@ -142,6 +142,10 @@ These change the engine or the input format, so they are not for unattended work
    allowed ranges (`bounds/__init__.py`), so this depends on item 2.
 4. **Categories that depend on an item ([#12](https://github.com/nicoveraz/bounded-calcs/issues/12))**, such as sex-specific cut-offs, and items
    shared by two components.
+5. **Laboratory reference ranges for "normal" ([#20](https://github.com/nicoveraz/bounded-calcs/issues/20)).**
+   "Urea normal" assumes the laboratory's upper limit is at most 7 mmol/L. Proposed: interval
+   inputs in the engine, normal ranges allowed to cross a threshold, and site-configurable
+   reference ranges.
 
 ## Distribution ([#13](https://github.com/nicoveraz/bounded-calcs/issues/13))
 
