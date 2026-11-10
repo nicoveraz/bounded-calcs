@@ -1,0 +1,81 @@
+id: qsofa
+name: qSOFA (quick Sequential Organ Failure Assessment)
+version: 1
+purpose: >-
+  Bedside prompt that identifies adults with suspected infection, outside the ICU, who are
+  likely to have poor outcomes typical of sepsis. Positive if at least 2 of the 3 criteria
+  are met.
+citation: >-
+  Seymour CW, Liu VX, Iwashyna TJ, et al. Assessment of clinical criteria for sepsis: for the
+  Third International Consensus Definitions for Sepsis and Septic Shock (Sepsis-3).
+  JAMA 2016;315(8):762-774. doi:10.1001/jama.2016.0288. PMID 26903335. [A]
+references:
+  - Singer M, Deutschman CS, Seymour CW, et al. The Third International Consensus Definitions
+    for Sepsis and Septic Shock (Sepsis-3). JAMA 2016;315(8):801-810.
+    doi:10.1001/jama.2016.0287. PMID 26903338. PMC4968574 (criteria, threshold, mentation). [P]
+higher_is_higher_risk: true
+notes:
+  - Ported from calc-bounds (github.com/nicoveraz/calc-bounds), qsofa.py, and checked against
+    the Sepsis-3 full text (Singer 2016). Seymour 2016 was read as an abstract only.
+  - "Applies to adults with suspected infection outside the ICU (Singer 2016). It is not a
+    stand-alone definition of sepsis, and a negative result should not delay investigation or
+    treatment of infection. The calculator does not check this."
+  - Sepsis-3 scores mentation as abnormal, not as changed from baseline, so a patient with
+    baseline cognitive impairment always has 1 point (calc-bounds CALCULATOR_NOTES, qSOFA).
+  - The Surviving Sepsis Campaign 2021 recommends against qSOFA as a single screening tool
+    (as recorded in calc-bounds CALCULATOR_NOTES, qSOFA).
+
+items:
+  - id: resp_rate
+    label: Respiratory rate
+    type: numeric
+    kind: measurement
+    unit: /min
+    normal: [12, 20]
+    notes:
+      - "Normal range 12 to 20 /min, used when the source says only that it is
+        normal. Taken from calc-bounds (params.py, absent_means), reviewed by the author on
+        2026-09-27; it crosses no threshold of any calculator that uses this item."
+  - id: altered_mentation
+    label: Altered mentation (any Glasgow Coma Scale score below 15)
+    type: boolean
+    kind: finding
+    question: Is mentation altered, that is, is the Glasgow Coma Scale score below 15?
+    notes:
+      - "REVIEWED(physician): any GCS below 15, as chosen by the Sepsis-3 task force (Singer
+        2016). The derivation model used GCS 13 or less (Seymour 2016)."
+  - id: sbp
+    label: Systolic blood pressure
+    type: numeric
+    kind: measurement
+    unit: mmHg
+    normal: [101, 139]
+    notes:
+      - "Normal range 101 to 139 mmHg, used when the source says only that it is
+        normal. Taken from calc-bounds (params.py, absent_means), reviewed by the author on
+        2026-09-27; it crosses no threshold of any calculator that uses this item."
+
+components:
+  - id: resp_rate
+    label: Respiratory rate >= 22
+    rule: bands
+    item: resp_rate
+    bands:
+      - {gte: 22, points: 1}
+      - {points: 0}
+  - {id: altered_mentation, label: Altered mentation, rule: present, item: altered_mentation, points: 1}
+  - id: sbp
+    label: Systolic blood pressure <= 100
+    rule: bands
+    item: sbp
+    bands:
+      - {lte: 100, points: 1}
+      - {points: 0}
+
+categories:
+  - name: negative
+    label: qSOFA negative (0-1)
+  - name: positive
+    label: qSOFA positive (2-3)
+    meaning: Investigate for organ dysfunction and consider escalating care (Sepsis-3).
+    min: 2
