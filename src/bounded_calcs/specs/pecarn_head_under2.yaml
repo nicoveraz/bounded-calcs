@@ -1,0 +1,111 @@
+id: pecarn_head_under2
+name: PECARN head injury rule, children younger than 2 years
+version: 1
+purpose: >-
+  Suggested CT decision after minor head trauma in children younger than 2 years with GCS 14-15,
+  presenting within 24 h of the injury: CT recommended, observation versus CT, or CT not
+  recommended (very low risk of clinically important traumatic brain injury).
+citation: >-
+  Kuppermann N, Holmes JF, Dayan PS, et al. Identification of children at very low risk of
+  clinically-important brain injuries after head trauma: a prospective cohort study. Lancet
+  2009;374(9696):1160-1170. doi:10.1016/S0140-6736(09)61558-0. PMID 19758692. Figure 3A
+  (tiers), figure 2A, panel 1 and methods (definitions). [P]
+references:
+  - "Department of Error. Lancet 2014;383(9914):308. doi:10.1016/S0140-6736(14)60105-7.
+    Corrects the classification of injury mechanism for 394 patients; figure 3 numbers change
+    slightly and the interpretation of the rules does not. [P]"
+higher_is_higher_risk: true
+notes:
+  - "Applies to children younger than 2 years presenting within 24 h of head trauma with GCS
+    14-15. Excluded in the source: trivial mechanisms (ground-level falls, or walking or running
+    into stationary objects, with no signs or symptoms of head trauma other than scalp abrasions
+    and lacerations), penetrating trauma, known brain tumours, pre-existing neurological
+    disorders complicating assessment, and neuroimaging at an outside hospital before transfer.
+    Ventricular shunts, bleeding disorders and GCS below 14 were analysed separately. The
+    calculator does not check any of this."
+  - "Tiered rule (Kuppermann 2009, figure 3A): CT recommended if any high-risk criterion;
+    otherwise observation versus CT if any intermediate criterion; otherwise CT not
+    recommended. Encoded as 5 points per high-risk criterion and 1 point per intermediate one,
+    so the score is an encoding with no clinical meaning; read the category."
+  - "Observation versus CT is decided on other clinical factors (figure 3A): physician
+    experience, multiple versus isolated findings, worsening symptoms or signs after emergency
+    department observation, age below 3 months, and parental preference."
+  - "CT not recommended is the PECARN rule negative (no predictor present); the other two
+    categories together are rule positive."
+  - "Source read from the copy of the 2009 article on pecarn.org, before the 2014 correction.
+    The tiers and definitions used here are not affected by that correction."
+
+items:
+  - id: gcs
+    label: Glasgow Coma Scale score (paediatric GCS for children aged 2 years or younger)
+    type: numeric
+    kind: measurement
+    unit: points
+  - id: other_ams_signs
+    label: >-
+      Other signs of altered mental status: agitation, somnolence, repetitive questioning, or
+      slow response to verbal communication
+    type: boolean
+    kind: finding
+  - id: palpable_skull_fracture
+    label: >-
+      Palpable skull fracture on digital inspection, or unclear because of swelling or
+      distortion of the scalp
+    type: boolean
+    kind: finding
+    notes:
+      - "TODO(physician-review): figure 3A says palpable skull fracture; figure 2A and panel 1
+        define the variable as palpable or unclear on the basis of swelling or distortion of
+        the scalp. The reading implemented counts an unclear examination as present. The
+        alternative is to count only a palpable fracture."
+  - id: nonfrontal_scalp_hematoma
+    label: Occipital, parietal or temporal scalp haematoma
+    type: boolean
+    kind: finding
+    notes:
+      - A frontal haematoma, or none, does not count (figure 2A).
+  - id: loc_5s_or_more
+    label: History of loss of consciousness lasting 5 seconds or more
+    type: boolean
+    kind: finding
+    notes:
+      - "Loss of consciousness under 5 seconds does not count (figure 2A: none or < 5 s versus
+        >= 5 s)."
+  - id: severe_mechanism_under2
+    label: >-
+      Severe mechanism of injury: motor vehicle crash with patient ejection, death of another
+      passenger, or rollover; pedestrian or bicyclist without helmet struck by a motorised
+      vehicle; fall of more than 0.9 m (3 feet); or head struck by a high-impact object
+    type: boolean
+    kind: finding
+    notes:
+      - "The fall height for children aged 2 years and older is 1.5 m, so that calculator uses
+        another item (severe_mechanism_2plus)."
+  - id: acting_abnormally
+    label: Not acting normally per parent (the parent reports the child is not at baseline)
+    type: boolean
+    kind: finding
+
+components:
+  - id: altered_mental_status
+    label: GCS 14 or other signs of altered mental status
+    rule: any_of
+    conditions:
+      - {item: gcs, lt: 15}
+      - {item: other_ams_signs}
+    points: 5
+  - {id: palpable_skull_fracture, label: Palpable skull fracture, rule: present, item: palpable_skull_fracture, points: 5}
+  - {id: nonfrontal_scalp_hematoma, label: "Occipital, parietal or temporal scalp haematoma", rule: present, item: nonfrontal_scalp_hematoma, points: 1}
+  - {id: loc_5s_or_more, label: Loss of consciousness of 5 s or more, rule: present, item: loc_5s_or_more, points: 1}
+  - {id: severe_mechanism_under2, label: Severe mechanism of injury, rule: present, item: severe_mechanism_under2, points: 1}
+  - {id: acting_abnormally, label: Not acting normally per parent, rule: present, item: acting_abnormally, points: 1}
+
+categories:
+  - name: ct_not_recommended
+    label: CT not recommended (no PECARN predictor)
+  - name: observation_vs_ct
+    label: Observation versus CT on the basis of other clinical factors (intermediate criterion only)
+    min: 1
+  - name: ct_recommended
+    label: CT recommended (any high-risk criterion)
+    min: 5
