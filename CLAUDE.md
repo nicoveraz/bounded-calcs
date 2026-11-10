@@ -12,7 +12,7 @@ literally. When they do not cover a situation, stop and ask; do not improvise.
 | Task | Read first |
 |---|---|
 | Add a calculator | `docs/ADDING_A_CALCULATOR.md`, then follow it step by step |
-| Choose what to build | `docs/ROADMAP.md`: take the first item marked **ready**, one at a time |
+| Choose what to build | `docs/ROADMAP.md`: take the first item marked **ready**, one at a time, and read the GitHub issue it links to |
 | Understand the engine | README "How it works"; docstrings of `spec.py`, `engine.py`, `testing.py` |
 
 ## Hard rules
@@ -112,7 +112,10 @@ an API by importing it before you use it.
 ## Working style
 
 - One calculator per commit. Subject: `Add <name> (<id>)`. Body: sources with their `[P]`,
-  `[A]`, `[S]` tags, and each `TODO(physician-review)` note you added.
+  `[A]`, `[S]` tags, each `TODO(physician-review)` note you added, and a last line
+  `Closes #N` with the number of the item's issue.
+- Give your report in your reply. Comment on an issue, or change its labels, only when the
+  user asks.
 - Do not refactor, rename or "improve" anything outside the task.
 - Everything in the repository is written in English: code, specs, docs, commit messages.
 - Run `uv run pytest` before every commit and read the output. A commit with a failing or

@@ -11,9 +11,9 @@ nothing.
 
 ## Step 0. Pick the task
 
-Open `docs/ROADMAP.md` and take the first item marked **ready**. Read its whole entry: it
-names the id to use, the sources, and known pitfalls. If the entry says it needs a decision
-that is still open, stop and ask the user.
+Open `docs/ROADMAP.md` and take the first item marked **ready**. Read its whole entry and
+the GitHub issue it links to: they name the id to use, the sources, and known pitfalls. If
+the item needs a decision that is still open, stop and ask the user.
 
 ## Step 1. Open the sources
 
@@ -291,7 +291,8 @@ Answer each line with yes before committing.
 
 ```sh
 git add src/bounded_calcs/specs/<id>.yaml tests/calculators/test_<id>.py README.md docs/ROADMAP.md
-git commit    # subject: Add <name> (<id>); body: sources with tags, TODO(physician-review) notes
+git commit    # subject: Add <name> (<id>); body: sources with tags, TODO(physician-review)
+              # notes, and a last line "Closes #N" with the number of the item's issue
 ```
 
 Then give the report described in `CLAUDE.md` ("Working style") and stop.
