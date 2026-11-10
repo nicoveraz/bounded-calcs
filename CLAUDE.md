@@ -85,6 +85,7 @@ src/bounded_calcs/
   engine.py       evaluate(): bounds, possible categories, decisive unknowns; schema()
   testing.py      assert_matches_reference(): spec and engine against an independent reference
   mcp_server.py   MCP tools: list_calculators, get_schema, evaluate
+  _mcp_launcher.py  the bounded-calcs-mcp command (explains a missing MCP extra)
   specs/*.yaml    one calculator each (file name = id)
 tests/
   calculators/    one test file per calculator (copy test_curb65.py for a new one)

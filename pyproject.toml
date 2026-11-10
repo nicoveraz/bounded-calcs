@@ -42,7 +42,7 @@ Paper = "https://arxiv.org/abs/2609.34112"
 mcp = ["mcp>=2,<3"]
 
 [project.scripts]
-bounded-calcs-mcp = "bounded_calcs.mcp_server:main"
+bounded-calcs-mcp = "bounded_calcs._mcp_launcher:main"
 
 [dependency-groups]
 dev = ["pytest>=8", "mcp>=2,<3"]
