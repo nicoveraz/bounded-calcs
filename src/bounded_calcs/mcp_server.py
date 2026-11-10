@@ -37,7 +37,7 @@ Research and reference use only. Not a medical device; not for unsupervised clin
 """
 
 CALCS = load_builtin()
-server = MCPServer(name="bounded-calcs", instructions=INSTRUCTIONS, version="0.1.0")
+server = MCPServer(name="bounded-calcs", instructions=INSTRUCTIONS, version="0.1.1")
 
 
 def _get(calculator_id: str):
