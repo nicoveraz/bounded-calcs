@@ -37,7 +37,7 @@ async def _session_run():
 def test_mcp_roundtrip():
     names, listed, ev, bad = asyncio.run(_session_run())
     assert names == {"list_calculators", "get_schema", "evaluate"}
-    assert {c["id"] for c in listed} == {"heart", "wells_pe"}
+    assert {c["id"] for c in listed} == {"heart", "wells_pe", "perc", "curb65"}
     assert ev["settled"] is False
     assert [d["item"] for d in ev["decisive_unknowns"]] == ["dvt_signs", "pe_most_likely"]
     assert bad.is_error and "Available" in bad.content[0].text

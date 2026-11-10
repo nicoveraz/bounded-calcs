@@ -24,6 +24,9 @@ Component rules:
              override?: item, override_points?: p}
             points by number of present boolean items; if `override` is present the
             component scores `override_points` regardless of the count
+  any_of    {conditions: [{item} | {item, gte|gt|lte|lt: x}, ...], points}
+            points if any condition is met: a boolean item present, or a numeric item
+            meeting its threshold (e.g. CURB-65 "SBP < 90 or DBP <= 60")
 """
 
 from __future__ import annotations
@@ -38,7 +41,7 @@ import yaml
 
 ITEM_TYPES = {"boolean", "ordinal", "numeric"}
 ITEM_KINDS = {"finding", "measurement", "judgment"}
-RULE_TYPES = {"present", "levels", "bands", "count"}
+RULE_TYPES = {"present", "levels", "bands", "count", "any_of"}
 BAND_OPS = ("gte", "gt", "lte", "lt")
 
 
@@ -88,11 +91,12 @@ class Component:
     label: str
     rule: str
     items: tuple[str, ...]
-    points: float | None = None  # present
+    points: float | None = None  # present, any_of
     level_points: dict[str, float] = field(default_factory=dict)  # levels
     bands: tuple[Band, ...] = ()  # bands, and count thresholds (op gte on the count)
     override: str | None = None  # count
     override_points: float | None = None  # count
+    conditions: dict[str, Band] = field(default_factory=dict)  # any_of: numeric item -> "met"
 
 
 @dataclass(frozen=True)
@@ -142,6 +146,14 @@ class Calculator:
             if item_id in c.items:
                 return c
         raise KeyError(item_id)
+
+    def numeric_bands(self, item_id: str) -> tuple[Band, ...]:
+        """The bands a numeric item is resolved into. For an any_of condition: [met, not met]."""
+        comp = self.component_of(item_id)
+        if comp.rule == "bands":
+            return comp.bands
+        met = comp.conditions[item_id]
+        return (met, Band(None, None, 0.0))
 
 
 def _req(d: dict[str, Any], key: str, where: str) -> Any:
@@ -232,6 +244,32 @@ def parse(data: dict[str, Any]) -> Calculator:
         elif rule == "bands":
             iid = item_of(_req(raw, "item", cw), "numeric")
             comp = Component(comp_id, label, rule, (iid,), bands=_bands(_req(raw, "bands", cw), cw))
+        elif rule == "any_of":
+            conds: dict[str, Band] = {}
+            members_list: list[str] = []
+            for c in _req(raw, "conditions", cw):
+                iid = _req(c, "item", cw)
+                if iid not in items:
+                    raise SpecError(f"{cw}: unknown item '{iid}'")
+                if iid in members_list:
+                    raise SpecError(f"{cw}: item '{iid}' appears twice")
+                ops = [op for op in BAND_OPS if op in c]
+                if items[iid].type == "boolean":
+                    if ops:
+                        raise SpecError(f"{cw}: boolean condition '{iid}' takes no threshold")
+                elif items[iid].type == "numeric":
+                    if len(ops) != 1:
+                        raise SpecError(f"{cw}: numeric condition '{iid}' needs one threshold")
+                    conds[iid] = Band(ops[0], float(c[ops[0]]), 1.0)
+                else:
+                    raise SpecError(f"{cw}: ordinal items cannot be any_of conditions")
+                members_list.append(iid)
+            if len(members_list) < 2:
+                raise SpecError(f"{cw}: any_of needs at least two conditions")
+            comp = Component(
+                comp_id, label, rule, tuple(members_list),
+                points=float(_req(raw, "points", cw)), conditions=conds,
+            )
         else:  # count
             members = tuple(item_of(i, "boolean") for i in _req(raw, "items", cw))
             bands = _bands(_req(raw, "points", cw), cw)

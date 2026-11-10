@@ -49,3 +49,35 @@ def test_base_parses():
 def test_invalid_specs_rejected(fn):
     with pytest.raises(SpecError):
         parse(mutate(fn))
+
+
+ANY_OF = {
+    "id": "anytoy", "name": "Any", "citation": "None",
+    "items": [
+        {"id": "x", "label": "X", "type": "numeric", "kind": "measurement", "unit": "u"},
+        {"id": "y", "label": "Y", "type": "boolean", "kind": "finding"},
+    ],
+    "components": [{"id": "c", "rule": "any_of", "points": 1,
+                    "conditions": [{"item": "x", "lt": 5}, {"item": "y"}]}],
+    "categories": [{"name": "low"}, {"name": "high", "min": 1}],
+}
+
+
+def test_any_of_parses():
+    assert parse(copy.deepcopy(ANY_OF)).components[0].rule == "any_of"
+
+
+@pytest.mark.parametrize(
+    "fn",
+    [
+        lambda d: d["components"][0]["conditions"][0].pop("lt"),  # numeric without threshold
+        lambda d: d["components"][0]["conditions"][1].update(gt=1),  # boolean with threshold
+        lambda d: d["components"][0]["conditions"].pop(),  # fewer than two conditions
+        lambda d: d["components"][0]["conditions"].append({"item": "y"}),  # repeated item
+    ],
+)
+def test_invalid_any_of_rejected(fn):
+    d = copy.deepcopy(ANY_OF)
+    fn(d)
+    with pytest.raises(SpecError):
+        parse(d)

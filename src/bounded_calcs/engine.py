@@ -70,8 +70,7 @@ def _normalize(calc: Calculator, inputs: dict[str, Any] | None) -> _Normalized:
                 raise InputError(
                     f"{calc.id}.{iid}: expected a number ({item.unit}) or unknown, got {v!r}"
                 ) from None
-            comp = calc.component_of(iid)
-            state[iid] = next(i for i, b in enumerate(comp.bands) if b.matches(x))
+            state[iid] = next(i for i, b in enumerate(calc.numeric_bands(iid)) if b.matches(x))
             raw_numeric[iid] = x
     return _Normalized(state, raw_numeric)
 
@@ -82,7 +81,7 @@ def _domain(calc: Calculator, item: Item) -> list[Any]:
         return [True, False]
     if item.type == "ordinal":
         return list(item.levels)
-    return list(range(len(calc.component_of(item.id).bands)))
+    return list(range(len(calc.numeric_bands(item.id))))
 
 
 def _component_points(comp: Component, state: State) -> set[float]:
@@ -96,6 +95,19 @@ def _component_points(comp: Component, state: State) -> set[float]:
     if comp.rule == "bands":
         v = state[comp.items[0]]
         return {comp.bands[v].points} if v is not None else {b.points for b in comp.bands}
+    if comp.rule == "any_of":
+        assert comp.points is not None
+
+        def met(i: str) -> bool | None:
+            v = state[i]
+            if v is None:
+                return None
+            return bool(v) if i not in comp.conditions else v == 0
+
+        flags = [met(i) for i in comp.items]
+        if any(f is True for f in flags):
+            return {comp.points}
+        return {0.0, comp.points} if any(f is None for f in flags) else {0.0}
     # count
     members = [i for i in comp.items if i != comp.override]
     known = sum(1 for i in members if state[i] is True)
@@ -133,7 +145,11 @@ def _describe_value(calc: Calculator, item: Item, v: Any) -> str:
         return "present" if v else "absent"
     if item.type == "ordinal":
         return str(v)
-    return calc.component_of(item.id).bands[v].describe(item.unit)
+    band = calc.numeric_bands(item.id)[v]
+    if calc.component_of(item.id).rule == "any_of" and band.op is None:
+        met = calc.numeric_bands(item.id)[0]
+        return "not " + met.describe(item.unit)
+    return band.describe(item.unit)
 
 
 def _fmt(x: float) -> float | int:
@@ -275,6 +291,14 @@ def schema(calc: Calculator) -> dict[str, Any]:
             unit = calc.items[comp.items[0]].unit
             c["item"] = comp.items[0]
             c["bands"] = [{"when": b.describe(unit), "points": _fmt(b.points)} for b in comp.bands]
+        elif comp.rule == "any_of":
+            conds = []
+            for i in comp.items:
+                if i in comp.conditions:
+                    conds.append(f"{i} {comp.conditions[i].describe(calc.items[i].unit)}")
+                else:
+                    conds.append(f"{i} present")
+            c["any_of"], c["points"] = conds, _fmt(comp.points or 0)
         else:
             c["items"] = [i for i in comp.items if i != comp.override]
             c["points_by_count"] = [

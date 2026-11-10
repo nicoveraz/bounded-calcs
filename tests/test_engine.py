@@ -9,9 +9,20 @@ from bounded_calcs.engine import _normalize, _reachable_scores
 CALCS = load_builtin()
 HEART = CALCS["heart"]
 WELLS = CALCS["wells_pe"]
+PERC = CALCS["perc"]
+CURB = CALCS["curb65"]
+ALL = [HEART, WELLS, PERC, CURB]
 
 # One representative value inside each numeric band, used to enumerate completions.
-NUMERIC_REPS = {"age": [30, 50, 70], "heart_rate": [80, 120]}
+NUMERIC_REPS = {
+    "age": [30, 47, 55, 70],
+    "heart_rate": [80, 100, 120],
+    "spo2": [90, 98],
+    "urea": [5, 9],
+    "resp_rate": [20, 34],
+    "sbp": [80, 120],
+    "dbp": [50, 80],
+}
 
 
 def domain(calc, iid):
@@ -44,7 +55,7 @@ def random_partial(calc, rng, p_known):
 # --- exactness against brute force -------------------------------------------------------
 
 
-@pytest.mark.parametrize("calc", [HEART, WELLS], ids=lambda c: c.id)
+@pytest.mark.parametrize("calc", ALL, ids=lambda c: c.id)
 def test_bounds_match_brute_force(calc):
     rng = random.Random(0)
     for _ in range(150):
@@ -56,7 +67,7 @@ def test_bounds_match_brute_force(calc):
         assert r["settled"] == (len(r["possible_categories"]) == 1)
 
 
-@pytest.mark.parametrize("calc", [HEART, WELLS], ids=lambda c: c.id)
+@pytest.mark.parametrize("calc", ALL, ids=lambda c: c.id)
 def test_unknown_classification_matches_brute_force(calc):
     rng = random.Random(1)
     for _ in range(60):
@@ -75,7 +86,7 @@ def test_unknown_classification_matches_brute_force(calc):
 
 def test_unsettled_always_offers_something_to_ask():
     rng = random.Random(2)
-    for calc in (HEART, WELLS):
+    for calc in ALL:
         for _ in range(200):
             r = evaluate(calc, random_partial(calc, rng, p_known=rng.random()))
             if not r["settled"]:
@@ -218,3 +229,55 @@ def test_schema_shape():
     kinds = {i["id"]: i["kind"] for i in s["items"]}
     assert kinds["heart_history"] == "judgment"
     assert [c["name"] for c in s["categories"]] == ["low", "moderate", "high"]
+
+
+# --- PERC and CURB-65 -----------------------------------------------------------------------
+
+
+def test_perc_negative_needs_every_criterion():
+    allmet = {"age": 35, "heart_rate": 88, "spo2": 98, "unilateral_leg_swelling": "absent",
+              "hemoptysis": "absent", "recent_surgery_trauma": "absent", "prior_vte": "absent",
+              "hormone_use": "absent"}
+    assert evaluate(PERC, allmet)["category"] == "negative"
+    # A note silent on hormone use cannot be called PERC negative.
+    r = evaluate(PERC, {k: v for k, v in allmet.items() if k != "hormone_use"})
+    assert not r["settled"]
+    assert [d["item"] for d in r["decisive_unknowns"]] == ["hormone_use"]
+    # Any criterion failed settles it as positive, whatever is unknown.
+    r = evaluate(PERC, {"age": 62})
+    assert r["settled"] and r["category"] == "positive"
+
+
+@pytest.mark.parametrize("spo2,expected", [(94.9, "positive"), (95, "negative")])
+def test_perc_spo2_boundary(spo2, expected):
+    allmet = {"age": 35, "heart_rate": 88, "unilateral_leg_swelling": "absent",
+              "hemoptysis": "absent", "recent_surgery_trauma": "absent", "prior_vte": "absent",
+              "hormone_use": "absent"}
+    assert evaluate(PERC, allmet | {"spo2": spo2})["category"] == expected
+
+
+def test_curb65_blood_pressure_any_of():
+    base = {"confusion": "absent", "urea": 5, "resp_rate": 18, "age": 50}
+    assert evaluate(CURB, base | {"sbp": 120, "dbp": 61})["score"] == 0
+    assert evaluate(CURB, base | {"sbp": 120, "dbp": 60})["score"] == 1
+    assert evaluate(CURB, base | {"sbp": 89, "dbp": 80})["score"] == 1
+    assert evaluate(CURB, base | {"sbp": 85, "dbp": 50})["score"] == 1  # still one point
+    # SBP low and DBP unknown: the point is already earned.
+    r = evaluate(CURB, base | {"sbp": 85})
+    assert r["settled"] and r["score"] == 1
+    # SBP normal and DBP unknown: the point is still open.
+    r = evaluate(CURB, base | {"sbp": 120})
+    assert r["score_range"] == [0, 1]
+
+
+@pytest.mark.parametrize("urea,points", [(7, 0), (7.1, 1)])
+def test_curb65_urea_boundary(urea, points):
+    base = {"confusion": "absent", "resp_rate": 18, "sbp": 120, "dbp": 80, "age": 50}
+    assert evaluate(CURB, base | {"urea": urea})["score"] == points
+
+
+def test_curb65_unmentioned_confusion():
+    # 70 years old, urea 9: 2 known points; confusion, RR and BP unknown -> moderate or high.
+    r = evaluate(CURB, {"age": 70, "urea": 9})
+    assert r["possible_categories"] == ["moderate", "high"]
+    assert {d["item"] for d in r["decisive_unknowns"]} == {"confusion", "resp_rate", "sbp", "dbp"}

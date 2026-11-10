@@ -1,0 +1,102 @@
+id: perc
+name: PERC rule (Pulmonary Embolism Rule-out Criteria)
+version: 1
+purpose: >-
+  Rule out PE without testing in patients whose gestalt pretest probability is already low
+  (< 15%). Negative only if all eight criteria are met.
+citation: >-
+  Kline JA, Mitchell AM, Kabrhel C, Richman PB, Courtney DM. Clinical criteria to prevent
+  unnecessary diagnostic testing in emergency department patients with suspected pulmonary
+  embolism. J Thromb Haemost 2004;2(8):1247-1255. PMID 15304025.
+references:
+  - Kline JA, Courtney DM, Kabrhel C, et al. Prospective multicenter evaluation of the pulmonary
+    embolism rule-out criteria. J Thromb Haemost 2008;6(5):772-780. PMID 18318689.
+higher_is_higher_risk: true
+notes:
+  - Ported from calc-bounds (github.com/nicoveraz/calc-bounds), perc.py. Only abstracts were
+    accessible; full-text variable definitions are unverified (see item notes).
+  - "Applies only when gestalt pretest probability is low (< 15%, Kline 2008). That gate is a
+    clinician judgment outside this calculator: a negative PERC means nothing without it."
+  - Score = number of criteria not met. "negative" means the rule is satisfied (all criteria met).
+
+items:
+  - id: age
+    label: Age
+    type: numeric
+    kind: measurement
+    unit: years
+  - id: heart_rate
+    label: Heart rate
+    type: numeric
+    kind: measurement
+    unit: /min
+  - id: spo2
+    label: Oxygen saturation on room air
+    type: numeric
+    kind: measurement
+    unit: "%"
+    notes:
+      - "REVIEWED(physician): threshold >= 95% (2008) vs > 94% (2004 abstract), and whether room
+        air is required."
+  - id: unilateral_leg_swelling
+    label: Unilateral leg swelling
+    type: boolean
+    kind: finding
+  - id: hemoptysis
+    label: Haemoptysis
+    type: boolean
+    kind: finding
+  - id: recent_surgery_trauma
+    label: Surgery or trauma within 4 weeks requiring hospitalisation
+    type: boolean
+    kind: finding
+    notes:
+      - "REVIEWED(physician): definition (requiring hospitalisation, 2008 abstract; some sources:
+        requiring general anaesthesia)."
+  - id: prior_vte
+    label: Previous DVT or PE
+    type: boolean
+    kind: finding
+  - id: hormone_use
+    label: Exogenous oestrogen use (oral contraceptives, hormone replacement)
+    type: boolean
+    kind: finding
+    notes:
+      - "REVIEWED(physician): oestrogen only vs any hormone therapy."
+
+components:
+  - id: age
+    label: Age >= 50
+    rule: bands
+    item: age
+    bands:
+      - {gte: 50, points: 1}
+      - {points: 0}
+  - id: heart_rate
+    label: Heart rate >= 100
+    rule: bands
+    item: heart_rate
+    bands:
+      - {gte: 100, points: 1}
+      - {points: 0}
+  - id: spo2
+    label: SpO2 < 95%
+    rule: bands
+    item: spo2
+    bands:
+      - {lt: 95, points: 1}
+      - {points: 0}
+  - {id: unilateral_leg_swelling, label: Unilateral leg swelling, rule: present, item: unilateral_leg_swelling, points: 1}
+  - {id: hemoptysis, label: Haemoptysis, rule: present, item: hemoptysis, points: 1}
+  - {id: recent_surgery_trauma, label: Recent surgery or trauma, rule: present, item: recent_surgery_trauma, points: 1}
+  - {id: prior_vte, label: Previous DVT or PE, rule: present, item: prior_vte, points: 1}
+  - {id: hormone_use, label: Hormone use, rule: present, item: hormone_use, points: 1}
+
+categories:
+  - name: negative
+    label: PERC negative (all criteria met)
+    meaning: With low gestalt pretest probability, PE can be ruled out without further testing.
+  - name: positive
+    label: PERC positive (at least one criterion not met)
+    meaning: PE cannot be ruled out by PERC; further evaluation needed.
+    min: 1

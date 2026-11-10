@@ -1,0 +1,91 @@
+id: curb65
+name: CURB-65
+version: 1
+purpose: Severity of community-acquired pneumonia at presentation, to guide site of care.
+citation: >-
+  Lim WS, van der Eerden MM, Laing R, et al. Defining community acquired pneumonia severity on
+  presentation to hospital: an international derivation and validation study.
+  Thorax 2003;58(5):377-382. doi:10.1136/thorax.58.5.377. PMID 12728155.
+higher_is_higher_risk: true
+notes:
+  - Ported from calc-bounds (github.com/nicoveraz/calc-bounds), curb65.py.
+  - "Groups (Lim 2003): 0-1 low (likely suitable for home treatment); 2 moderate (consider
+    hospital-supervised treatment); 3-5 high (manage in hospital as severe pneumonia; assess for
+    ICU if 4-5)."
+
+items:
+  - id: confusion
+    label: Confusion (Mental Test Score <= 8, or new disorientation to person, place or time)
+    type: boolean
+    kind: finding
+    question: Is there new confusion or disorientation (or AMT <= 8)?
+  - id: urea
+    label: Serum urea
+    type: numeric
+    kind: measurement
+    unit: mmol/L
+    notes:
+      - "Urea in mmol/L. From BUN in mg/dL, divide by 2.8 (7 mmol/L = BUN 19.6 mg/dL)."
+      - "REVIEWED(physician): US implementations use BUN > 19 mg/dL (MDCalc), which differs from
+        > 7 mmol/L for BUN 19.1-19.6. This spec applies the original > 7 mmol/L."
+  - id: resp_rate
+    label: Respiratory rate
+    type: numeric
+    kind: measurement
+    unit: /min
+  - id: sbp
+    label: Systolic blood pressure
+    type: numeric
+    kind: measurement
+    unit: mmHg
+  - id: dbp
+    label: Diastolic blood pressure
+    type: numeric
+    kind: measurement
+    unit: mmHg
+  - id: age
+    label: Age
+    type: numeric
+    kind: measurement
+    unit: years
+
+components:
+  - {id: confusion, label: Confusion, rule: present, item: confusion, points: 1}
+  - id: urea
+    label: Urea > 7 mmol/L
+    rule: bands
+    item: urea
+    bands:
+      - {gt: 7, points: 1}
+      - {points: 0}
+  - id: resp_rate
+    label: Respiratory rate >= 30
+    rule: bands
+    item: resp_rate
+    bands:
+      - {gte: 30, points: 1}
+      - {points: 0}
+  - id: blood_pressure
+    label: SBP < 90 or DBP <= 60
+    rule: any_of
+    conditions:
+      - {item: sbp, lt: 90}
+      - {item: dbp, lte: 60}
+    points: 1
+  - id: age
+    label: Age >= 65
+    rule: bands
+    item: age
+    bands:
+      - {gte: 65, points: 1}
+      - {points: 0}
+
+categories:
+  - name: low
+    label: Low (0-1)
+  - name: moderate
+    label: Moderate (2)
+    min: 2
+  - name: high
+    label: High (3-5)
+    min: 3

@@ -28,9 +28,11 @@ deterministic code decides whether the missing items matter.
 |---|---|---|
 | `heart` | HEART score (low / moderate / high) | Six et al., Neth Heart J 2008. PMID 18665203 |
 | `wells_pe` | Wells criteria for PE, two-tier (unlikely / likely) | Wells et al., Thromb Haemost 2000. PMID 10744147 |
+| `perc` | PERC rule (negative / positive) | Kline et al., J Thromb Haemost 2004. PMID 15304025 |
+| `curb65` | CURB-65 (low / moderate / high) | Lim et al., Thorax 2003. PMID 12728155 |
 
-Both are ported from calc-bounds and cross-checked exhaustively against its implementations
-on every complete input, including age and heart-rate boundaries.
+All are ported from calc-bounds and cross-checked exhaustively against its implementations
+on every complete input, including every numeric threshold boundary.
 
 ## Example
 
@@ -111,7 +113,8 @@ decisive unknowns, and never fill judgment items itself.
 Each calculator is one YAML file in `src/bounded_calcs/specs/`: items (type, kind, levels or
 unit, a question to ask), components (how items become points), and categories. Component
 rules: `present`, `levels`, `bands` (numeric thresholds), `count` (number of present items,
-with an optional override item). Every item belongs to exactly one component; that is what
+with an optional override item), and `any_of` (points if any of several conditions is met,
+such as CURB-65's "SBP < 90 or DBP <= 60"). Every item belongs to exactly one component; that is what
 makes the bounds exact rather than approximate. See `spec.py` for the full format and the
 validation it enforces.
 
