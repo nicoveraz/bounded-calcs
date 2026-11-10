@@ -14,6 +14,7 @@ literally. When they do not cover a situation, stop and ask; do not improvise.
 | Add a calculator | `docs/ADDING_A_CALCULATOR.md`, then follow it step by step |
 | Choose what to build | `docs/ROADMAP.md`: take the first item marked **ready**, one at a time, and read the GitHub issue it links to |
 | Understand the engine | README "How it works"; docstrings of `spec.py`, `engine.py`, `testing.py` |
+| Prepare a release | `docs/RELEASING.md`, and only when the user asks for a release |
 
 ## Hard rules
 
@@ -46,8 +47,8 @@ literally. When they do not cover a situation, stop and ask; do not improvise.
 10. **No real patient data** anywhere: specs, tests, examples, commit messages.
 11. **No claims of clinical validity.** Never write that this is validated, safe for clinical
     use or a medical device.
-12. **Dependencies:** `pyyaml` (runtime), `mcp>=2` (optional extra), `pytest` (dev). Ask before
-    adding anything else.
+12. **Dependencies:** `pyyaml` (runtime), `mcp>=2,<3` (optional extra), `pytest` (dev). Ask
+    before adding anything else.
 
 ## When to stop and ask
 
@@ -92,6 +93,9 @@ tests/
 docs/
   ADDING_A_CALCULATOR.md  the procedure
   ROADMAP.md              what is built, what is next, open decisions
+  RELEASING.md            how a version reaches PyPI
+scripts/smoke_test.py     checks a built wheel or sdist as an installed package
+.github/workflows/publish.yml   tests, builds and publishes when a version tag is pushed
 ```
 
 ## Commands

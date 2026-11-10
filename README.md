@@ -23,6 +23,16 @@ deterministic code decides whether the missing items matter.
 > reviewed by one emergency physician (the author); several sources were read only as
 > abstracts or through secondary sources, as each spec states.
 
+## Install
+
+```bash
+pip install bounded-calcs            # the library
+pip install "bounded-calcs[mcp]"     # the library and the MCP server
+```
+
+Python 3.11 or later. The MCP server can also run without installing anything first: see
+[MCP server](#mcp-server).
+
 ## Calculators
 
 | id | Calculator | Source | Verified |
@@ -92,11 +102,11 @@ likely"). Clients should never infer judgment items from text.
 
 ## MCP server
 
-Runs over stdio by default, so notes stay on the machine.
+Runs over stdio by default, so notes stay on the machine. With
+[uv](https://docs.astral.sh/uv/) installed, one command fetches and starts it:
 
 ```bash
-uv sync --extra mcp
-uv run bounded-calcs-mcp
+uvx --from "bounded-calcs[mcp]" bounded-calcs-mcp
 ```
 
 Claude Desktop / Claude Code config:
@@ -105,12 +115,15 @@ Claude Desktop / Claude Code config:
 {
   "mcpServers": {
     "bounded-calcs": {
-      "command": "uv",
-      "args": ["--directory", "/path/to/bounded-calcs", "run", "bounded-calcs-mcp"]
+      "command": "uvx",
+      "args": ["--from", "bounded-calcs[mcp]", "bounded-calcs-mcp"]
     }
   }
 }
 ```
+
+From a clone of this repository, use `"command": "uv"` with
+`"args": ["--directory", "/path/to/bounded-calcs", "run", "bounded-calcs-mcp"]`.
 
 Tools: `list_calculators`, `get_schema(calculator_id)`, `evaluate(calculator_id, findings)`.
 The server's instructions tell the model to send only documented findings, ask about
@@ -127,9 +140,9 @@ exactly one component; that is what makes the bounds exact rather than approxima
 loader is strict: misspelled keys, bands that can never match and text that YAML misread are
 errors.
 
-The procedure is in [`docs/ADDING_A_CALCULATOR.md`](docs/ADDING_A_CALCULATOR.md), the queue
-in [`docs/ROADMAP.md`](docs/ROADMAP.md), and the rules for AI coding agents in
-[`CLAUDE.md`](CLAUDE.md). In short: take every criterion from the primary source, write the
+The procedure is in [`docs/ADDING_A_CALCULATOR.md`](https://github.com/nicoveraz/bounded-calcs/blob/main/docs/ADDING_A_CALCULATOR.md), the
+queue in [`docs/ROADMAP.md`](https://github.com/nicoveraz/bounded-calcs/blob/main/docs/ROADMAP.md), and the rules for AI coding agents in
+[`CLAUDE.md`](https://github.com/nicoveraz/bounded-calcs/blob/main/CLAUDE.md). In short: take every criterion from the primary source, write the
 spec and an independent reference function, and let `assert_matches_reference` compare them:
 
 ```python
@@ -158,6 +171,9 @@ average, with data items before judgments when otherwise equal.
 uv sync
 uv run pytest
 ```
+
+Releases are published to PyPI by a GitHub Actions workflow when a version tag is pushed:
+[`docs/RELEASING.md`](https://github.com/nicoveraz/bounded-calcs/blob/main/docs/RELEASING.md).
 
 Each calculator has its own test file with an independent reference function, threshold
 cases taken from the source, and sparse-note examples. Other tests cover the spec loader's

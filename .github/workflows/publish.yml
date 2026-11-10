@@ -1,0 +1,68 @@
+# Publishes to PyPI when a version tag such as v0.1.0 is pushed. Publishing a GitHub release
+# creates the tag, so that is the usual way to start it. Procedure: docs/RELEASING.md.
+#
+# No token is stored anywhere: PyPI trusts this workflow through Trusted Publishing, which is
+# configured once on pypi.org (project bounded-calcs, workflow publish.yml, environment pypi).
+#
+# Layout and action pins follow the official uv guide
+# (https://docs.astral.sh/uv/guides/integration/github/). Actions are pinned to commits
+# because the publish job can upload to PyPI; update a pin only to a tagged release.
+name: Publish to PyPI
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Test and build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+      - name: The tag must match the version in pyproject.toml
+        run: |
+          version=$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match version $version in pyproject.toml"
+            exit 1
+          fi
+      - name: Run the tests
+        run: |
+          uv sync --locked
+          uv run pytest -q
+      - name: Build the sdist and the wheel
+        run: uv build
+      - name: Smoke-test both distributions as installed packages
+        run: |
+          uv run --isolated --no-project --with dist/*.whl --with "mcp>=2,<3" scripts/smoke_test.py
+          uv run --isolated --no-project --with dist/*.tar.gz --with "mcp>=2,<3" scripts/smoke_test.py
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+
+  publish:
+    name: Publish
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/bounded-calcs/
+    permissions:
+      id-token: write # lets PyPI verify that the upload comes from this workflow
+    steps:
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: dist
+          path: dist/
+      - name: Publish with Trusted Publishing
+        run: uv publish

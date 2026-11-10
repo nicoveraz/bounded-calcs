@@ -143,12 +143,12 @@ These change the engine or the input format, so they are not for unattended work
 4. **Categories that depend on an item ([#12](https://github.com/nicoveraz/bounded-calcs/issues/12))**, such as sex-specific cut-offs, and items
    shared by two components.
 
-## Distribution (needs decision, [#13](https://github.com/nicoveraz/bounded-calcs/issues/13))
+## Distribution ([#13](https://github.com/nicoveraz/bounded-calcs/issues/13))
 
-Today the only way to install is to clone the repository. The issue recommends a PyPI release
-(the MCP server would then start with `uvx`, as Python MCP servers usually do) and no npm
-package for now: an `npx` wrapper would still need Python, and a TypeScript port is a second
-engine to keep in step while the engine work above is open.
+Decided on 2026-11-10: publish on PyPI, and no npm package for now. An `npx` wrapper would
+still need Python, and a TypeScript port is a second engine to keep in step while the engine
+work above is open. The MCP SDK stays an optional extra (`bounded-calcs[mcp]`), so the library
+alone depends only on PyYAML. The release procedure is in `docs/RELEASING.md`.
 
 ## Housekeeping
 
