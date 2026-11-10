@@ -96,6 +96,11 @@ MISTAKES = {
     "higher_is_higher_risk not a boolean": lambda d: d.update(higher_is_higher_risk="no"),
     "note YAML read as a mapping": lambda d: d.update(notes=[{"TODO(physician-review)": "x"}]),
     "empty label": lambda d: d["items"][0].update(label=" "),
+    "normal range on a boolean item": lambda d: d["items"][0].update(normal=[0, 1]),
+    "normal range that is not a pair": lambda d: d["items"][1].update(normal=[5]),
+    "normal range reversed": lambda d: d["items"][1].update(normal=[9, 5]),
+    "normal range as text": lambda d: d["items"][1].update(normal=["5", "9"]),
+    "normal range across a threshold": lambda d: d["items"][1].update(normal=[5, 15]),
 }
 
 
@@ -103,6 +108,16 @@ MISTAKES = {
 def test_mistake_is_rejected(name):
     with pytest.raises(SpecError):
         parse(broken(MISTAKES[name]))
+
+
+def test_normal_range_inside_one_band_is_accepted():
+    calc = parse(broken(lambda d: d["items"][1].update(normal=[10, 19.9])))
+    assert calc.items["b"].normal == (10, 19.9)
+
+
+def test_normal_range_error_names_the_bands():
+    with pytest.raises(SpecError, match="straddles a threshold"):
+        parse(broken(lambda d: d["items"][1].update(normal=[5, 15])))
 
 
 def test_band_order_error_explains_the_fix():

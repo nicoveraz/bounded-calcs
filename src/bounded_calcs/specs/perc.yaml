@@ -32,12 +32,21 @@ items:
     type: numeric
     kind: measurement
     unit: /min
+    normal: [60, 99]
+    notes:
+      - "Normal range 60 to 99 /min, used when the source says only that it is
+        normal. Taken from calc-bounds (params.py, absent_means), reviewed by the author on
+        2026-09-27; it crosses no threshold of any calculator that uses this item."
   - id: spo2
     label: Oxygen saturation on room air
     type: numeric
     kind: measurement
     unit: "%"
+    normal: [95, 100]
     notes:
+      - "Normal range 95 to 100 %, used when the source says only that it is
+        normal. Taken from calc-bounds (params.py, absent_means), reviewed by the author on
+        2026-09-27; it crosses no threshold of any calculator that uses this item."
       - "REVIEWED(physician): the criterion fails below 95% on room air (Kline 2008). The 2004
         abstract says the rule needs more than 94%."
   - id: unilateral_leg_swelling

@@ -14,6 +14,7 @@ from typing import Any
 from bounded_calcs.spec import Calculator, Component, Item
 
 UNKNOWN_WORDS = {"unknown", "not_mentioned", "not mentioned", "unk", ""}
+NORMAL_WORD = "normal"
 TRUE_WORDS = {"present", "yes", "true", "y", "1"}
 FALSE_WORDS = {"absent", "no", "false", "n", "0"}
 
@@ -30,6 +31,7 @@ class InputError(ValueError):
 class _Normalized:
     state: State
     raw_numeric: dict[str, float]
+    normal_assumed: dict[str, tuple[float, float]]
 
 
 def _normalize(calc: Calculator, inputs: dict[str, Any] | None) -> _Normalized:
@@ -41,6 +43,7 @@ def _normalize(calc: Calculator, inputs: dict[str, Any] | None) -> _Normalized:
         )
     state: State = {}
     raw_numeric: dict[str, float] = {}
+    normal_assumed: dict[str, tuple[float, float]] = {}
     for iid, item in calc.items.items():
         v = inputs.get(iid)
         if v is None or (isinstance(v, str) and v.strip().lower() in UNKNOWN_WORDS):
@@ -62,10 +65,26 @@ def _normalize(calc: Calculator, inputs: dict[str, Any] | None) -> _Normalized:
                 )
             state[iid] = v
         else:  # numeric
-            hint = (
-                f"{calc.id}.{iid}: expected a number in {item.unit}, or unknown. Send unknown "
-                f"when the source gives no number (for example only 'normal'); got {v!r}"
-            )
+            if item.normal is not None:
+                lo, hi = item.normal
+                hint = (
+                    f"{calc.id}.{iid}: expected a number in {item.unit}, 'normal' (assumed "
+                    f"{lo:g} to {hi:g} {item.unit}) when the source says only that it is normal, "
+                    f"or unknown; got {v!r}"
+                )
+            else:
+                hint = (
+                    f"{calc.id}.{iid}: expected a number in {item.unit}, or unknown. This item "
+                    f"has no normal range, so send unknown when the source gives no number; "
+                    f"got {v!r}"
+                )
+            if isinstance(v, str) and v.strip().lower() == NORMAL_WORD:
+                if item.normal is None:
+                    raise InputError(hint)
+                bands = calc.numeric_bands(iid)
+                state[iid] = next(i for i, b in enumerate(bands) if b.matches(item.normal[0]))
+                normal_assumed[iid] = item.normal
+                continue
             if isinstance(v, bool):
                 raise InputError(hint)
             try:
@@ -76,7 +95,7 @@ def _normalize(calc: Calculator, inputs: dict[str, Any] | None) -> _Normalized:
                 raise InputError(hint)
             state[iid] = next(i for i, b in enumerate(calc.numeric_bands(iid)) if b.matches(x))
             raw_numeric[iid] = x
-    return _Normalized(state, raw_numeric)
+    return _Normalized(state, raw_numeric, normal_assumed)
 
 
 def _domain(calc: Calculator, item: Item) -> list[Any]:
@@ -300,6 +319,11 @@ def evaluate(calc: Calculator, inputs: dict[str, Any] | None = None) -> dict[str
             f"Not settled. Unknown items were not assumed normal. Resolve {ask} (ask the "
             "clinician) and evaluate again; do not report a single category yet."
         )
+    if norm.normal_assumed:
+        result["normal_assumed"] = {
+            iid: {"range": [_fmt(lo), _fmt(hi)], "unit": calc.items[iid].unit}
+            for iid, (lo, hi) in norm.normal_assumed.items()
+        }
     judgment_pending = [d["item"] for d in decisive if d["kind"] == "judgment"]
     if judgment_pending:
         result["judgment_items_pending"] = judgment_pending
@@ -325,7 +349,15 @@ def schema(calc: Calculator) -> dict[str, Any]:
             entry["values"] = [*item.levels, "unknown"]
         else:
             entry["unit"] = item.unit
-            entry["values"] = f"number in {item.unit}, or unknown"
+            if item.normal is not None:
+                lo, hi = item.normal
+                entry["normal"] = [_fmt(lo), _fmt(hi)]
+                entry["values"] = (
+                    f"number in {item.unit}; 'normal' when the source says only that it is "
+                    f"normal (assumed {lo:g} to {hi:g}); or unknown"
+                )
+            else:
+                entry["values"] = f"number in {item.unit}, or unknown (no 'normal' for this item)"
         if item.question:
             entry["question"] = item.question
         if item.notes:
@@ -385,7 +417,8 @@ def schema(calc: Calculator) -> dict[str, Any]:
         "input_rules": (
             "Pass only what is documented or known. Omit an item, or send 'unknown', when the "
             "source does not mention it: never fill it in as absent or normal. A numeric item "
-            "described only as 'normal', with no number, is unknown. Items of kind 'judgment' "
-            "must come from the clinician, not from a note."
+            "the source describes only as normal takes 'normal' if the item has a normal range, "
+            "and is unknown otherwise; never invent a number. Items of kind 'judgment' must come "
+            "from the clinician, not from a note."
         ),
     }

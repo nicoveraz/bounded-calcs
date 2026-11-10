@@ -162,13 +162,34 @@ def test_boolean_spellings():
         {"hemoptysis": "maybe"},
         {"hemoptysis": "normal"},
         {"heart_rate": "fast"},
-        {"heart_rate": "normal"},
         {"heart_rate": True},
     ],
 )
 def test_bad_inputs_are_rejected_not_guessed(inputs):
     with pytest.raises(InputError):
         evaluate(WELLS, inputs)
+
+
+def test_normal_is_rejected_for_an_item_without_a_normal_range():
+    with pytest.raises(InputError, match="no normal range"):
+        evaluate(HEART, {"age": "normal"})
+
+
+@pytest.mark.parametrize("word", ["normal", "Normal", " NORMAL "])
+def test_normal_means_a_number_inside_the_declared_range(word):
+    # Wells: heart rate > 100 scores 1.5; the declared normal range is 60 to 99.
+    with_word = evaluate(WELLS, {"heart_rate": word, "dvt_signs": "present"})
+    with_number = evaluate(WELLS, {"heart_rate": 80, "dvt_signs": "present"})
+    assert with_word.pop("normal_assumed") == {"heart_rate": {"range": [60, 99], "unit": "/min"}}
+    assert with_word == with_number
+    assert "normal_assumed" not in with_number
+
+
+def test_schema_lists_the_normal_range():
+    items = {i["id"]: i for i in schema(WELLS)["items"]}
+    assert items["heart_rate"]["normal"] == [60, 99]
+    assert "'normal'" in items["heart_rate"]["values"]
+    assert "normal" not in {i["id"]: i for i in schema(HEART)["items"]}["age"]
 
 
 def test_bad_level_rejected():

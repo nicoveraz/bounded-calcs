@@ -125,7 +125,17 @@ inventing a clinician's judgment is not.
 - Reuse an existing item id (`age`, `heart_rate`, `sbp`, `dbp`, `resp_rate`, `spo2`...) only
   when the definition and the unit are identical. List them with
   `grep -h "  - id:" src/bounded_calcs/specs/*.yaml | sort | uniq -c`. A different definition
-  gets a new id (CURB-65 `confusion` and a GCS-based item are not the same thing).
+  gets a new id (CURB-65 `confusion` and a GCS-based item are not the same thing). A reused id
+  must copy the existing definition exactly: type, kind, unit, levels and `normal`. A test
+  enforces this.
+- **Normal range.** A numeric item that notes often describe only as "normal" (vital signs,
+  routine laboratory values) may declare `normal: [lo, hi]`: the range assumed when a note
+  says "vital signs normal". When the item id already exists in another spec, copy its range
+  and its note. Otherwise, add a range only if a source or calc-bounds (`params.py`,
+  `absent_means`) gives one, with a `TODO(physician-review):` note saying where it came from.
+  The range must fall inside one band of the component; the loader and the reference check
+  both enforce this. Never add a range for age, weight or other values that are never just
+  "normal".
 - The applicability gate goes in `purpose` and `notes`. Do not add items for it.
 
 ## Step 5. Write the spec
@@ -157,8 +167,10 @@ items:
     type: numeric
     kind: measurement
     unit: C
+    normal: [36, 37.9]         # optional: assumed when a note says only "normal"
     notes:
       - "TODO(physician-review): implemented as > 38.0 (abstract); the full text may say >= 38.0."
+      - "TODO(physician-review): normal range 36 to 37.9 C, taken from <source>."
   - id: severity
     label: Severity of ...
     type: ordinal
@@ -257,6 +269,8 @@ All tests must pass, with none skipped that passed before. What a failure means:
 | `SpecError: ... unknown key(s)` | a key is misspelled or not part of the format | fix the key; do not extend the format |
 | `SpecError: ... must be text` or `expected a mapping` | YAML did not read a value as text | wrap it in double quotes |
 | `SpecError: ... already used by component` | one item in two components | the calculator does not fit: stop and ask |
+| `SpecError: ... straddles a threshold` | a normal range crosses a band boundary | narrow the range so it fits in one band, or drop it |
+| `the normal range of ... crosses a threshold of the reference` | the range crosses a threshold of the source, even if the spec's bands do not | re-read the source thresholds; fix the spec or the range |
 | `spec and reference disagree on a complete input` | the YAML and `reference` differ for the inputs shown | re-read the source for that item; fix the side that is wrong |
 | `engine and reference disagree on a partial input` | should not happen once complete inputs agree | do not touch the engine: stop and report the message |
 | `no input ever reaches [...]` | a category cut-off is impossible | check the cut-offs in the source |
@@ -264,6 +278,7 @@ All tests must pass, with none skipped that passed before. What a failure means:
 | `test_listed_in_readme_and_roadmap` | step 7 not done | add the rows |
 | `test_cites_a_source_and_says_how_it_was_verified` | PMID/DOI or `[P]`/`[A]`/`[S]` missing | fix `citation` and `references` |
 | `test_judgment_items_have_a_question` | a judgment item has no `question` | add it |
+| `test_shared_item_ids_have_one_definition` | a reused item id differs from its other definition | copy the definition, or use a new id |
 | `test_review_markers_are_spelled_exactly` | a marker is misspelled | `TODO(physician-review):` exactly |
 
 If a test that existed before your change fails, your change broke something or the

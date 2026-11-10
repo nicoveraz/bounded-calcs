@@ -34,6 +34,8 @@ def test_failure_messages_quoted_in_the_procedure_exist():
         "spec and reference disagree on a complete input",
         "engine and reference disagree on a partial input",
         "no input ever reaches",
+        "straddles a threshold",
+        "crosses a threshold of the reference",
     ]:
         assert message in PROCEDURE, message
         assert message in SRC, message
