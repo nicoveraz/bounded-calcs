@@ -38,14 +38,17 @@ recommendations" is a valid answer.
   moderate / high, Wells 1997)? Recommended: two-tier, consistent with `wells_pe`.
 - **D2. Sore throat score ([#4](https://github.com/nicoveraz/bounded-calcs/issues/4)).** Centor (four criteria) or McIsaac (Centor plus age)?
   Recommended: McIsaac as `mcisaac`, because its primary paper is free full text and can be
-  verified as [P].
+  verified as [P]. **Decided 2026-11-10: McIsaac, as `mcisaac`.**
 - **D3. CHA2DS2-VASc categories ([#5](https://github.com/nicoveraz/bounded-calcs/issues/5)).** Guideline cut-offs differ and can depend on sex; this
   format only supports categories defined by the total score. Recommended: use the score-only
   categories exactly as the source paper defines them, and say in `notes` that guideline
-  thresholds differ. The alternative is to wait for an engine change.
+  thresholds differ. The alternative is to wait for an engine change. **Decided 2026-11-10:
+  wait for categories that can depend on an item (#12).**
 - **D4. Canadian CT Head Rule encoding ([#6](https://github.com/nicoveraz/bounded-calcs/issues/6)).** It has two tiers of criteria, so it needs the
   "tiered rules" encoding of the procedure, where the score is not clinically meaningful.
   Recommended: accept the encoding, with categories `no_criteria`, `medium_risk`, `high_risk`.
+  **Decided 2026-11-10: wait for an engine change that models tiers directly.** Until then
+  the PECARN rules (D5) use the encoding.
 - **D5. PECARN head injury rules ([#23](https://github.com/nicoveraz/bounded-calcs/issues/23)).** Decided 2026-11-10: the head injury
   rules (Kuppermann 2009), as two calculators by age, with the tiered encoding.
 
@@ -78,7 +81,7 @@ number and inequality from the source.
   not have the same item list; several examination findings carry a threshold in their
   wording (make those boolean, with the threshold in the label).
 
-### 3. Sore throat score: `mcisaac` or `centor` — needs decision D2 ([#4](https://github.com/nicoveraz/bounded-calcs/issues/4))
+### 3. Sore throat score: `mcisaac` — ready, McIsaac decided in D2 ([#4](https://github.com/nicoveraz/bounded-calcs/issues/4))
 
 - Sources: Centor RM et al. Med Decis Making 1981;1(3):239-246.
   doi:10.1177/0272989X8100100304. PMID 6763125 (the abstract lists the four variables).
@@ -88,14 +91,14 @@ number and inequality from the source.
   item named for the symptom. The modified score adds age bands, one of them negative. The
   score has a lower age limit: gate in `purpose` and `notes`.
 
-### 4. CHA2DS2-VASc: `cha2ds2_vasc` — needs decision D3 ([#5](https://github.com/nicoveraz/bounded-calcs/issues/5))
+### 4. CHA2DS2-VASc: `cha2ds2_vasc` — needs design, waits for #12 (D3) ([#5](https://github.com/nicoveraz/bounded-calcs/issues/5))
 
 - Source: Lip GYH et al. Chest 2010;137(2):263-272. doi:10.1378/chest.09-1584.
   PMID 19762550. The abstract does not contain the points table; you need the full text.
 - Structure hints: age has two bands; one item is worth more than the others; sex is an
   ordinal item with two levels (`levels` rule).
 
-### 5. Canadian CT Head Rule: `canadian_ct_head` — needs decision D4 ([#6](https://github.com/nicoveraz/bounded-calcs/issues/6))
+### 5. Canadian CT Head Rule: `canadian_ct_head` — needs design, waits for engine tiers (D4) ([#6](https://github.com/nicoveraz/bounded-calcs/issues/6))
 
 - Source: Stiell IG et al. Lancet 2001;357(9266):1391-1396.
   doi:10.1016/S0140-6736(00)04561-X. PMID 11356436.
