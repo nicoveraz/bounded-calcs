@@ -62,14 +62,18 @@ def _normalize(calc: Calculator, inputs: dict[str, Any] | None) -> _Normalized:
                 )
             state[iid] = v
         else:  # numeric
+            hint = (
+                f"{calc.id}.{iid}: expected a number in {item.unit}, or unknown. Send unknown "
+                f"when the source gives no number (for example only 'normal'); got {v!r}"
+            )
             if isinstance(v, bool):
-                raise InputError(f"{calc.id}.{iid}: expected a number ({item.unit}) or unknown")
+                raise InputError(hint)
             try:
                 x = float(v)
             except (TypeError, ValueError):
-                raise InputError(
-                    f"{calc.id}.{iid}: expected a number ({item.unit}) or unknown, got {v!r}"
-                ) from None
+                raise InputError(hint) from None
+            if x != x or x in (float("inf"), float("-inf")):
+                raise InputError(hint)
             state[iid] = next(i for i, b in enumerate(calc.numeric_bands(iid)) if b.matches(x))
             raw_numeric[iid] = x
     return _Normalized(state, raw_numeric)
@@ -85,10 +89,12 @@ def _domain(calc: Calculator, item: Item) -> list[Any]:
 
 
 def _component_points(comp: Component, state: State) -> set[float]:
-    if comp.rule == "present":
+    if comp.rule in ("present", "absent"):
         v = state[comp.items[0]]
         assert comp.points is not None
-        return {comp.points if v else 0.0} if v is not None else {comp.points, 0.0}
+        if v is None:
+            return {comp.points, 0.0}
+        return {comp.points if v == (comp.rule == "present") else 0.0}
     if comp.rule == "levels":
         v = state[comp.items[0]]
         return {comp.level_points[v]} if v is not None else set(comp.level_points.values())
@@ -282,7 +288,7 @@ def schema(calc: Calculator) -> dict[str, Any]:
     components = []
     for comp in calc.components:
         c: dict[str, Any] = {"id": comp.id, "label": comp.label, "rule": comp.rule}
-        if comp.rule == "present":
+        if comp.rule in ("present", "absent"):
             c["item"], c["points"] = comp.items[0], _fmt(comp.points or 0)
         elif comp.rule == "levels":
             c["item"] = comp.items[0]
@@ -331,7 +337,8 @@ def schema(calc: Calculator) -> dict[str, Any]:
         "notes": list(calc.notes),
         "input_rules": (
             "Pass only what is documented or known. Omit an item, or send 'unknown', when the "
-            "source does not mention it: never fill it in as absent or normal. Items of kind "
-            "'judgment' must come from the clinician, not from a note."
+            "source does not mention it: never fill it in as absent or normal. A numeric item "
+            "described only as 'normal', with no number, is unknown. Items of kind 'judgment' "
+            "must come from the clinician, not from a note."
         ),
     }

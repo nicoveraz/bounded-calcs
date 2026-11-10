@@ -4,15 +4,18 @@ version: 1
 purpose: Risk of major adverse cardiac events in adult emergency department patients with chest pain.
 citation: >-
   Six AJ, Backus BE, Kelder JC. Chest pain in the emergency room: value of the HEART score.
-  Neth Heart J 2008;16(6):191-196. doi:10.1007/BF03086144. PMID 18665203.
+  Neth Heart J 2008;16(6):191-196. doi:10.1007/BF03086144. PMID 18665203. [P]
 references:
-  - Backus BE et al. Crit Pathw Cardiol 2010;9(3):164-169. PMID 20802272.
-  - Backus BE et al. Int J Cardiol 2013;168(3):2153-2158. PMID 23465250.
-  - Backus BE et al. Curr Cardiol Rev 2011;7(1):2-8. PMC3131711 (Table V).
+  - Backus BE et al. Crit Pathw Cardiol 2010;9(3):164-169. PMID 20802272. [A]
+  - Backus BE et al. Int J Cardiol 2013;168(3):2153-2158. PMID 23465250. [A]
+  - Backus BE et al. Curr Cardiol Rev 2011;7(1):2-8. PMC3131711 (Table V). [P]
+  - Poldervaart JM et al. BMC Cardiovasc Disord 2013;13:77. PMC3849098. [P]
 higher_is_higher_risk: true
 notes:
-  - Ported from calc-bounds (github.com/nicoveraz/calc-bounds), heart.py. Items marked
-    "REVIEWED(physician)" there are carried over as item notes and still need sign-off.
+  - Ported from calc-bounds (github.com/nicoveraz/calc-bounds), heart.py.
+  - Readings reviewed and accepted by the author, an emergency physician, on 2026-09-27
+    (calc-bounds docs/CALCULATOR_NOTES.md). Item notes that start with the review marker give
+    the reading implemented and the alternatives considered.
 
 items:
   - id: heart_history
@@ -29,8 +32,8 @@ items:
     levels: [normal, nonspecific_repolarization, significant_st_deviation]
     question: How is the ECG (normal, nonspecific repolarization disturbance, significant ST deviation)?
     notes:
-      - "REVIEWED(physician): 2 points for ST depression only (Six 2008 table) or ST deviation
-        including elevation (Six 2008 text, MDCalc). Level label uses 'deviation'."
+      - "REVIEWED(physician): 2 points for significant ST deviation, depression or elevation
+        (Six 2008 text, MDCalc). The Six 2008 table says ST depression only."
 
   - id: age
     label: Age
@@ -38,7 +41,9 @@ items:
     kind: measurement
     unit: years
     notes:
-      - "REVIEWED(physician): age 45 scores 1 point (Six 2008 text, MDCalc); Poldervaart 2013 gives 0."
+      - "REVIEWED(physician): age 45 scores 1 point and age 65 scores 2 (Six 2008 text, '65 years
+        or older'). Poldervaart 2013 gives 0 points at 45; the Six 2008 table prints '<= 65' for
+        2 points, treated as a typo."
 
   - id: hypertension
     label: Diagnosed and/or treated hypertension
@@ -59,33 +64,39 @@ items:
     notes:
       - "REVIEWED(physician): BMI > 30 (Poldervaart 2013); not defined in Six 2008."
   - id: smoking
-    label: Current or recent smoker
+    label: Current smoker, or stopped within the last 3 months
     type: boolean
     kind: finding
     notes:
-      - "REVIEWED(physician): recency window < 1 month (Six 2008) vs <= 3 months."
+      - "REVIEWED(physician): stopped within 3 months still counts (MDCalc). Six 2008 says
+        within 1 month."
   - id: family_history_cad
-    label: Family history of coronary artery disease
+    label: Family history of coronary artery disease (first-degree relative before age 65)
     type: boolean
     kind: finding
     notes:
-      - "REVIEWED(physician): definition (e.g. first-degree relative < 65)."
+      - "REVIEWED(physician): first-degree relative with coronary artery disease before age 65."
   - id: atherosclerotic_disease
-    label: Known atherosclerotic disease (prior MI, revascularization, stroke, peripheral arterial disease)
+    label: Known atherosclerotic disease (prior MI, revascularization, stroke or TIA, peripheral arterial disease)
     type: boolean
     kind: finding
     notes:
-      - "REVIEWED(physician): whether TIA counts as atherosclerotic disease (MDCalc: yes)."
+      - "REVIEWED(physician): TIA counts as atherosclerotic disease (MDCalc). Six 2008 lists
+        revascularisation, MI, stroke and peripheral arterial disease."
 
   - id: heart_troponin
-    label: Initial troponin relative to the assay's normal limit
+    label: Initial troponin relative to the assay's upper reference limit
     type: ordinal
     kind: measurement
     levels: [le_normal, 1_to_3x_normal, gt_3x_normal]
-    question: What was the initial troponin relative to the assay's upper normal limit?
+    question: What was the initial troponin relative to the assay's upper reference limit?
     notes:
-      - "REVIEWED(physician): bands 1-2x / > 2x (Six 2008) vs 1-3x / >= 3x (Backus 2011,
-        Poldervaart 2013) or > 3x (MDCalc). The boundary is resolved when the level is chosen."
+      - "REVIEWED(physician): bands are at or below the limit / 1 to 3 times / more than 3
+        times, following the validation cohorts (Backus 2010 and 2013, Poldervaart 2013). Six
+        2008 used 1 to 2 times / more than 2 times. Exactly 3 times is the upper band in Backus
+        2011 and Poldervaart and the middle band in MDCalc: decide when choosing the level."
+      - The level is relative to the assay's upper reference limit. Converting a raw
+        concentration needs that limit, so it is done by the caller, not here.
 
 components:
   - id: history

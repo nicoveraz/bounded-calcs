@@ -5,29 +5,35 @@ purpose: Severity of community-acquired pneumonia at presentation, to guide site
 citation: >-
   Lim WS, van der Eerden MM, Laing R, et al. Defining community acquired pneumonia severity on
   presentation to hospital: an international derivation and validation study.
-  Thorax 2003;58(5):377-382. doi:10.1136/thorax.58.5.377. PMID 12728155.
+  Thorax 2003;58(5):377-382. doi:10.1136/thorax.58.5.377. PMID 12728155. [P]
 higher_is_higher_risk: true
 notes:
   - Ported from calc-bounds (github.com/nicoveraz/calc-bounds), curb65.py.
-  - "Groups (Lim 2003): 0-1 low (likely suitable for home treatment); 2 moderate (consider
-    hospital-supervised treatment); 3-5 high (manage in hospital as severe pneumonia; assess for
-    ICU if 4-5)."
+  - Readings reviewed and accepted by the author, an emergency physician, on 2026-09-27
+    (calc-bounds docs/CALCULATOR_NOTES.md).
+  - "Groups (Lim 2003, Figure 2): 0-1 low (likely suitable for home treatment); 2 moderate
+    (consider hospital-supervised treatment); 3-5 high (manage in hospital as severe pneumonia;
+    assess for ICU if 4-5)."
 
 items:
   - id: confusion
     label: Confusion (Mental Test Score <= 8, or new disorientation to person, place or time)
     type: boolean
     kind: finding
-    question: Is there new confusion or disorientation (or AMT <= 8)?
+    question: Is there new confusion or disorientation (or a Mental Test Score of 8 or less)?
+    notes:
+      - "REVIEWED(physician): only new disorientation counts; a stable baseline impairment does
+        not."
   - id: urea
     label: Serum urea
     type: numeric
     kind: measurement
     unit: mmol/L
     notes:
-      - "Urea in mmol/L. From BUN in mg/dL, divide by 2.8 (7 mmol/L = BUN 19.6 mg/dL)."
-      - "REVIEWED(physician): US implementations use BUN > 19 mg/dL (MDCalc), which differs from
-        > 7 mmol/L for BUN 19.1-19.6. This spec applies the original > 7 mmol/L."
+      - Urea in mmol/L. From BUN in mg/dL divide by 2.8014; from urea in mg/dL divide by 6.006.
+        The caller converts; a bare "mg/dL" without the analyte is ambiguous.
+      - "REVIEWED(physician): the original > 7 mmol/L is applied, which is BUN > 19.6 mg/dL.
+        MDCalc uses BUN > 19 mg/dL."
   - id: resp_rate
     label: Respiratory rate
     type: numeric

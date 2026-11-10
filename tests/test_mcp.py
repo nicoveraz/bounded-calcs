@@ -11,6 +11,8 @@ pytest.importorskip("mcp")
 from mcp import ClientSession  # noqa: E402
 from mcp.client.stdio import StdioServerParameters, stdio_client  # noqa: E402
 
+from bounded_calcs import load_builtin  # noqa: E402
+
 
 def _payload(res):
     data = getattr(res, "structured_content", None) or json.loads(res.content[0].text)
@@ -37,7 +39,7 @@ async def _session_run():
 def test_mcp_roundtrip():
     names, listed, ev, bad = asyncio.run(_session_run())
     assert names == {"list_calculators", "get_schema", "evaluate"}
-    assert {c["id"] for c in listed} == {"heart", "wells_pe", "perc", "curb65"}
+    assert {c["id"] for c in listed} == set(load_builtin())
     assert ev["settled"] is False
     assert [d["item"] for d in ev["decisive_unknowns"]] == ["dvt_signs", "pe_most_likely"]
     assert bad.is_error and "Available" in bad.content[0].text

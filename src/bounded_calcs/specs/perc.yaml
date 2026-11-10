@@ -7,17 +7,19 @@ purpose: >-
 citation: >-
   Kline JA, Mitchell AM, Kabrhel C, Richman PB, Courtney DM. Clinical criteria to prevent
   unnecessary diagnostic testing in emergency department patients with suspected pulmonary
-  embolism. J Thromb Haemost 2004;2(8):1247-1255. PMID 15304025.
+  embolism. J Thromb Haemost 2004;2(8):1247-1255. PMID 15304025. [A]
 references:
   - Kline JA, Courtney DM, Kabrhel C, et al. Prospective multicenter evaluation of the pulmonary
-    embolism rule-out criteria. J Thromb Haemost 2008;6(5):772-780. PMID 18318689.
+    embolism rule-out criteria. J Thromb Haemost 2008;6(5):772-780. PMID 18318689. [A]
 higher_is_higher_risk: true
 notes:
-  - Ported from calc-bounds (github.com/nicoveraz/calc-bounds), perc.py. Only abstracts were
-    accessible; full-text variable definitions are unverified (see item notes).
+  - Ported from calc-bounds (github.com/nicoveraz/calc-bounds), perc.py.
+  - Readings reviewed and accepted by the author, an emergency physician, on 2026-09-27
+    (calc-bounds docs/CALCULATOR_NOTES.md). Both papers were read as abstracts only, so the
+    full-text variable definitions are unverified.
   - "Applies only when gestalt pretest probability is low (< 15%, Kline 2008). That gate is a
     clinician judgment outside this calculator: a negative PERC means nothing without it."
-  - Score = number of criteria not met. "negative" means the rule is satisfied (all criteria met).
+  - The score is the number of criteria not met. "negative" means all eight criteria are met.
 
 items:
   - id: age
@@ -36,8 +38,8 @@ items:
     kind: measurement
     unit: "%"
     notes:
-      - "REVIEWED(physician): threshold >= 95% (2008) vs > 94% (2004 abstract), and whether room
-        air is required."
+      - "REVIEWED(physician): the criterion fails below 95% on room air (Kline 2008). The 2004
+        abstract says the rule needs more than 94%."
   - id: unilateral_leg_swelling
     label: Unilateral leg swelling
     type: boolean
@@ -51,8 +53,8 @@ items:
     type: boolean
     kind: finding
     notes:
-      - "REVIEWED(physician): definition (requiring hospitalisation, 2008 abstract; some sources:
-        requiring general anaesthesia)."
+      - "REVIEWED(physician): within 4 weeks and requiring hospitalisation (Kline 2008
+        abstract). Some sources say requiring general anaesthesia."
   - id: prior_vte
     label: Previous DVT or PE
     type: boolean
@@ -62,7 +64,7 @@ items:
     type: boolean
     kind: finding
     notes:
-      - "REVIEWED(physician): oestrogen only vs any hormone therapy."
+      - "REVIEWED(physician): exogenous oestrogen. The 2004 abstract says 'hormone use'."
 
 components:
   - id: age

@@ -19,20 +19,27 @@ from rule-based decision logic for clinical risk scores*
 [calc-bounds](https://github.com/nicoveraz/calc-bounds)): the LLM only reads the note;
 deterministic code decides whether the missing items matter.
 
-> **Research and reference use only.** Not a medical device. Calculator definitions carry
-> open review notes (see each spec) that need physician sign-off before any clinical use.
+> **Research and reference use only.** Not a medical device. The built-in definitions were
+> reviewed by one emergency physician (the author); several sources were read only as
+> abstracts or through secondary sources, as each spec states.
 
 ## Calculators
 
-| id | Calculator | Source |
-|---|---|---|
-| `heart` | HEART score (low / moderate / high) | Six et al., Neth Heart J 2008. PMID 18665203 |
-| `wells_pe` | Wells criteria for PE, two-tier (unlikely / likely) | Wells et al., Thromb Haemost 2000. PMID 10744147 |
-| `perc` | PERC rule (negative / positive) | Kline et al., J Thromb Haemost 2004. PMID 15304025 |
-| `curb65` | CURB-65 (low / moderate / high) | Lim et al., Thorax 2003. PMID 12728155 |
+| id | Calculator | Source | Verified |
+|---|---|---|---|
+| `heart` | HEART score (low / moderate / high) | Six et al., Neth Heart J 2008. PMID 18665203 | [P] |
+| `wells_pe` | Wells criteria for PE, two-tier (unlikely / likely) | Wells et al., Thromb Haemost 2000. PMID 10744147 | [A], [S] |
+| `perc` | PERC rule (negative / positive) | Kline et al., J Thromb Haemost 2004. PMID 15304025 | [A] |
+| `curb65` | CURB-65 (low / moderate / high) | Lim et al., Thorax 2003. PMID 12728155 | [P] |
 
-All are ported from calc-bounds and cross-checked exhaustively against its implementations
-on every complete input, including every numeric threshold boundary.
+Verified: **[P]** primary full text read, **[A]** abstract only, **[S]** secondary source
+(guideline or later paper). All four are ported from calc-bounds, whose readings the author
+reviewed and accepted (`docs/CALCULATOR_NOTES.md` there). Item notes in each spec record the
+reading implemented and the alternatives: `REVIEWED(physician)` marks a reading a physician
+accepted, `TODO(physician-review)` one that is still open.
+
+Every calculator is checked against an independent reference function on all complete
+inputs, including each numeric threshold, and on partial inputs by brute force.
 
 ## Example
 
@@ -69,6 +76,7 @@ that it depends on two things the note doesn't say, one of which only the clinic
 - **ordinal** items: one of the listed levels
 - **numeric** items: a number in the item's unit
 - anything omitted, `null`, or `"unknown"` is unknown, **never** normal
+- a numeric item the source only calls "normal", with no number, is also unknown
 
 Each item also has a **kind**: `finding` (readable from a note), `measurement` (vitals, labs,
 age) or `judgment` (clinician only, e.g. HEART history, Wells "alternative diagnosis less
@@ -112,14 +120,29 @@ decisive unknowns, and never fill judgment items itself.
 
 Each calculator is one YAML file in `src/bounded_calcs/specs/`: items (type, kind, levels or
 unit, a question to ask), components (how items become points), and categories. Component
-rules: `present`, `levels`, `bands` (numeric thresholds), `count` (number of present items,
-with an optional override item), and `any_of` (points if any of several conditions is met,
-such as CURB-65's "SBP < 90 or DBP <= 60"). Every item belongs to exactly one component; that is what
-makes the bounds exact rather than approximate. See `spec.py` for the full format and the
-validation it enforces.
+rules: `present`, `absent`, `levels`, `bands` (numeric thresholds), `count` (number of present
+items, with an optional override item), and `any_of` (points if any of several conditions is
+met, such as CURB-65's "SBP < 90 or DBP <= 60"). Points may be negative. Every item belongs to
+exactly one component; that is what makes the bounds exact rather than approximate. The
+loader is strict: misspelled keys, bands that can never match and text that YAML misread are
+errors.
 
-Before adding one: cite the primary source, write tests for every threshold, and record
-any definitional ambiguity as a `REVIEWED(physician)` note on the item.
+The procedure is in [`docs/ADDING_A_CALCULATOR.md`](docs/ADDING_A_CALCULATOR.md), the queue
+in [`docs/ROADMAP.md`](docs/ROADMAP.md), and the rules for AI coding agents in
+[`CLAUDE.md`](CLAUDE.md). In short: take every criterion from the primary source, write the
+spec and an independent reference function, and let `assert_matches_reference` compare them:
+
+```python
+from bounded_calcs import load_file
+from bounded_calcs.testing import assert_matches_reference
+
+def reference(v):   # written from the paper, not from the YAML
+    score = v["confusion"] + (v["urea"] > 7) + (v["resp_rate"] >= 30) \
+        + (v["sbp"] < 90 or v["dbp"] <= 60) + (v["age"] >= 65)
+    return score, "low" if score <= 1 else "moderate" if score == 2 else "high"
+
+assert_matches_reference(load_file("curb65.yaml"), reference)
+```
 
 ## How it works
 
@@ -136,9 +159,10 @@ uv sync
 uv run pytest
 ```
 
-Tests check the bounds and the decisive/irrelevant classification against brute-force
-enumeration of every completion, hand-checked boundary cases, input validation, spec
-validation, and an end-to-end MCP session.
+Each calculator has its own test file with an independent reference function, threshold
+cases taken from the source, and sparse-note examples. Other tests cover the spec loader's
+validation, input handling, every rule type, an end-to-end MCP session, and that the
+reference check itself fails on a wrong spec.
 
 ## License
 

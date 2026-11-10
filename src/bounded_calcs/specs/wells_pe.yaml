@@ -5,14 +5,17 @@ purpose: Pretest probability of pulmonary embolism, dichotomized as PE likely / 
 citation: >-
   Wells PS, Anderson DR, Rodger M, et al. Derivation of a simple clinical model to categorize
   patients probability of pulmonary embolism: increasing the models utility with the SimpliRED
-  D-dimer. Thromb Haemost 2000;83(3):416-420. PMID 10744147.
+  D-dimer. Thromb Haemost 2000;83(3):416-420. PMID 10744147. [A]
 references:
-  - van Belle A, et al. (Christopher Study). JAMA 2006;295(2):172-179. PMID 16403929 (two-tier cutoff).
-  - NICE NG158, Table 2 (item wording).
+  - van Belle A, et al. (Christopher Study). JAMA 2006;295(2):172-179. PMID 16403929 (two-tier cut-off). [A]
+  - NICE guideline NG158, Table 2 (item wording). [S]
 higher_is_higher_risk: true
 notes:
-  - Ported from calc-bounds (github.com/nicoveraz/calc-bounds), wells_pe.py. Only abstracts of
-    Wells 2000/2001 were accessible when it was written; see item notes.
+  - Ported from calc-bounds (github.com/nicoveraz/calc-bounds), wells_pe.py.
+  - Readings reviewed and accepted by the author, an emergency physician, on 2026-09-27
+    (calc-bounds docs/CALCULATOR_NOTES.md). The primary papers were read as abstracts only;
+    item wording follows NICE NG158.
+  - Scores move in half-point steps, so "more than 4" starts at 4.5.
 
 items:
   - id: dvt_signs
@@ -25,8 +28,8 @@ items:
     kind: judgment
     question: Is an alternative diagnosis less likely than PE?
     notes:
-      - "REVIEWED(physician): 'alternative diagnosis less likely than PE' (NICE) vs MDCalc's
-        'PE #1 diagnosis OR equally likely'."
+      - "REVIEWED(physician): 'alternative diagnosis less likely than PE' (NICE). MDCalc words
+        it as 'PE is the #1 diagnosis or equally likely'."
   - id: heart_rate
     label: Heart rate
     type: numeric
@@ -37,7 +40,8 @@ items:
     type: boolean
     kind: finding
     notes:
-      - "REVIEWED(physician): immobilisation '> 3 days' (NICE) vs '>= 3 days' (MDCalc)."
+      - "REVIEWED(physician): immobilisation for more than 3 days (NICE); MDCalc says 3 days or
+        more. The 4-week window is read as applying to both immobilisation and surgery."
   - id: prior_vte
     label: Previous DVT or PE
     type: boolean
