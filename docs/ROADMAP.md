@@ -36,6 +36,7 @@ message with `Closes #N`.
 | `has_bled` | HAS-BLED (score only) | [P] Pisters 2010 (methods and table 2) | not yet reviewed | 4 |
 | `cha2ds2_vasc` | CHA2DS2-VASc | [P] Lip 2010 (table 2 and methods) | not yet reviewed | 2 |
 | `sf_syncope` | San Francisco Syncope Rule | [P] Quinn 2004 (abstract and results) | not yet reviewed | 1 |
+| `cincinnati_stroke` | Cincinnati Prehospital Stroke Scale (score only) | [P] Kothari 1999 (abstract and figure) | not yet reviewed | 0 |
 
 "Reviewed (calc-bounds)" means the readings were accepted by the author, an emergency
 physician, as recorded in `docs/CALCULATOR_NOTES.md` of `nicoveraz/calc-bounds`.
