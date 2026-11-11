@@ -70,8 +70,7 @@ number and inequality from the source.
   every item whose definition you could not read.
 - Applies to blunt trauma patients: put the gate in `purpose` and `notes`.
 
-### 3. Sore throat score: `mcisaac` — ready, McIsaac decided in D2 ([#4](https://github.com/nicoveraz/bounded-calcs/issues/4))
-### 2. Sore throat score: `mcisaac` or `centor` — needs decision D2 ([#4](https://github.com/nicoveraz/bounded-calcs/issues/4))
+### 2. Sore throat score: `mcisaac` — ready, McIsaac decided in D2 ([#4](https://github.com/nicoveraz/bounded-calcs/issues/4))
 
 - Sources: Centor RM et al. Med Decis Making 1981;1(3):239-246.
   doi:10.1177/0272989X8100100304. PMID 6763125 (the abstract lists the four variables).
@@ -81,16 +80,14 @@ number and inequality from the source.
   item named for the symptom. The modified score adds age bands, one of them negative. The
   score has a lower age limit: gate in `purpose` and `notes`.
 
-### 4. CHA2DS2-VASc: `cha2ds2_vasc` — needs design, waits for #12 (D3) ([#5](https://github.com/nicoveraz/bounded-calcs/issues/5))
-### 3. CHA2DS2-VASc: `cha2ds2_vasc` — needs decision D3 ([#5](https://github.com/nicoveraz/bounded-calcs/issues/5))
+### 3. CHA2DS2-VASc: `cha2ds2_vasc` — needs design, waits for #12 (D3) ([#5](https://github.com/nicoveraz/bounded-calcs/issues/5))
 
 - Source: Lip GYH et al. Chest 2010;137(2):263-272. doi:10.1378/chest.09-1584.
   PMID 19762550. The abstract does not contain the points table; you need the full text.
 - Structure hints: age has two bands; one item is worth more than the others; sex is an
   ordinal item with two levels (`levels` rule).
 
-### 5. Canadian CT Head Rule: `canadian_ct_head` — needs design, waits for engine tiers (D4) ([#6](https://github.com/nicoveraz/bounded-calcs/issues/6))
-### 4. Canadian CT Head Rule: `canadian_ct_head` — needs decision D4 ([#6](https://github.com/nicoveraz/bounded-calcs/issues/6))
+### 4. Canadian CT Head Rule: `canadian_ct_head` — needs design, waits for engine tiers (D4) ([#6](https://github.com/nicoveraz/bounded-calcs/issues/6))
 
 - Source: Stiell IG et al. Lancet 2001;357(9266):1391-1396.
   doi:10.1016/S0140-6736(00)04561-X. PMID 11356436.
