@@ -107,6 +107,17 @@ MISTAKES = {
         normal=[10, 19], accepts=[12, 40]
     ),
     "threshold outside the accepted range": lambda d: d["items"][1].update(accepts=[0, 15]),
+    "units on a boolean item": lambda d: d["items"][0].update(units={"x": {"multiply_by": 2}}),
+    "units that are not a mapping": lambda d: d["items"][1].update(units=["x"]),
+    "units left empty": lambda d: d["items"][1].update(units={}),
+    "unit with no factor": lambda d: d["items"][1].update(units={"x": {}}),
+    "unit with two factors": lambda d: d["items"][1].update(
+        units={"x": {"multiply_by": 2, "divide_by": 2}}
+    ),
+    "unit factor of zero": lambda d: d["items"][1].update(units={"x": {"divide_by": 0}}),
+    "unit factor below zero": lambda d: d["items"][1].update(units={"x": {"multiply_by": -1}}),
+    "unit factor as text": lambda d: d["items"][1].update(units={"x": {"multiply_by": "2"}}),
+    "unit with a misspelled key": lambda d: d["items"][1].update(units={"x": {"times": 2}}),
     "category on a group no component has": lambda d: d["categories"][1].update(group="g"),
     "group name not snake_case": lambda d: d["components"][0].update(group="High risk"),
     "first category with a group": lambda d: (
@@ -211,3 +222,19 @@ def test_bare_on_is_not_a_key():
 def test_accepted_range_parses():
     calc = parse(broken(lambda d: d["items"][1].update(accepts=[0, 40], normal=[10, 19])))
     assert calc.items["b"].accepts == (0, 40)
+
+
+def test_units_parse_as_factors_to_the_item_unit():
+    calc = parse(
+        broken(
+            lambda d: d["items"][1].update(units={"x": {"multiply_by": 4}, "y": {"divide_by": 4}})
+        )
+    )
+    assert calc.items["b"].units == {"x": 4, "y": 0.25}
+
+
+def test_a_unit_cannot_repeat_the_item_unit_or_another_unit():
+    unit = BASE["items"][1]["unit"]
+    for units in ({unit: {"multiply_by": 2}}, {"x": {"multiply_by": 2}, "X": {"divide_by": 2}}):
+        with pytest.raises(SpecError):
+            parse(broken(lambda d: d["items"][1].update(units=units)))

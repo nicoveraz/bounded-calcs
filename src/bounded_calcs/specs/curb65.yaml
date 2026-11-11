@@ -29,6 +29,9 @@ items:
     type: numeric
     kind: measurement
     unit: mmol/L
+    units:
+      bun_mg/dL: {divide_by: 2.8014}
+      urea_mg/dL: {divide_by: 6.006}
     accepts: [1, 60]
     normal: [2.5, 8]
     notes:
@@ -39,8 +42,9 @@ items:
         point open, and the value is asked for when it can change the category. A site whose
         laboratory's upper reference limit is at most 7 mmol/L can set its own range, for
         example 2.5 to 7. Confirmed by the author, an emergency physician, on 2026-11-10."
-      - Urea in mmol/L. From BUN in mg/dL divide by 2.8014; from urea in mg/dL divide by 6.006.
-        The caller converts; a bare "mg/dL" without the analyte is ambiguous.
+      - "Urea in mmol/L. The engine converts a value sent with unit bun_mg/dL (divided by
+        2.8014) or urea_mg/dL (divided by 6.006). A bare mg/dL is refused: without the analyte
+        it is ambiguous. Factors from calc-bounds (units.py)."
       - "REVIEWED(physician): the original > 7 mmol/L is applied, which is BUN > 19.6 mg/dL.
         MDCalc uses BUN > 19 mg/dL."
   - id: resp_rate

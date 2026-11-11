@@ -21,6 +21,11 @@ transcription slips (a saturation of 0.97, a urea that was really BUN in mg/dL) 
 score was not made for (a child's age in an adult score). It belongs to the calculator, so two
 calculators may accept different ranges of the same item.
 
+A numeric item may declare `units`: other units a value may arrive in, each with how to turn
+it into the item's unit, `{multiply_by: x}` or `{divide_by: x}`. The engine converts; the
+caller sends the number as written with its unit. Name the analyte in the unit when the bare
+unit is ambiguous (`bun_mg/dL`, `urea_mg/dL`).
+
 Item kinds (who can supply the value):
   finding      can be read from a note or chart
   measurement  a number from the chart (vitals, labs, age)
@@ -85,7 +90,8 @@ _TOP_KEYS = {
     "notes", "items", "components", "categories",
 }  # fmt: skip
 _ITEM_KEYS = {
-    "id", "label", "type", "kind", "levels", "unit", "normal", "accepts", "question", "notes",
+    "id", "label", "type", "kind", "levels", "unit", "units", "normal", "accepts", "question",
+    "notes",
 }  # fmt: skip
 _COMPONENT_KEYS = {
     "present": {"id", "label", "rule", "item", "points", "group"},
@@ -121,6 +127,7 @@ class Item:
     notes: tuple[str, ...] = ()
     normal: tuple[float, float] | None = None
     accepts: tuple[float, float] | None = None
+    units: dict[str, float] = field(default_factory=dict)  # other unit -> factor to `unit`
 
 
 @dataclass(frozen=True)
@@ -386,6 +393,29 @@ def parse(data: Any) -> Calculator:
             if normal is not None and not (lo <= normal[0] and normal[1] <= hi):
                 raise SpecError(f"{iw}: the normal range must lie inside 'accepts'")
             accepts = (lo, hi)
+        units: dict[str, float] = {}
+        if "units" in raw:
+            if itype != "numeric":
+                raise SpecError(f"{iw}: 'units' is only for numeric items")
+            if not isinstance(raw["units"], dict) or not raw["units"]:
+                raise SpecError(f"{iw}: 'units' must map each unit to a conversion")
+            for uname, conv in raw["units"].items():
+                uw = f"{iw} unit {uname!r}"
+                if not isinstance(uname, str) or not uname.strip() or uname != uname.strip():
+                    raise SpecError(f"{uw}: the unit must be text; {_NOT_TEXT}")
+                if uname.lower() == str(raw["unit"]).lower() or uname.lower() in {
+                    u.lower() for u in units
+                }:
+                    raise SpecError(f"{uw}: listed twice, or the same as the item's own unit")
+                if not isinstance(conv, dict) or len(conv) != 1:
+                    raise SpecError(f"{uw}: needs exactly one of 'multiply_by' or 'divide_by'")
+                ((how, amount),) = conv.items()
+                if how not in ("multiply_by", "divide_by"):
+                    raise SpecError(f"{uw}: needs exactly one of 'multiply_by' or 'divide_by'")
+                amount = _number(amount, uw, f"'{how}'")
+                if amount <= 0:
+                    raise SpecError(f"{uw}: '{how}' must be greater than 0")
+                units[uname] = amount if how == "multiply_by" else 1.0 / amount
         items[iid] = Item(
             id=iid,
             label=_text(_req(raw, "label", iw), iw, "label"),
@@ -397,6 +427,7 @@ def parse(data: Any) -> Calculator:
             notes=_texts(raw.get("notes", []), iw, "notes"),
             normal=normal,
             accepts=accepts,
+            units=units,
         )
 
     components: list[Component] = []

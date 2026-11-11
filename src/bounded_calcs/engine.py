@@ -35,6 +35,7 @@ class _Normalized:
     state: State
     known_ranges: dict[str, tuple[float, float]]
     normal_assumed: dict[str, tuple[float, float, str]]
+    converted: dict[str, dict[str, Any]]
 
 
 def _check_range(where: str, value: Any) -> tuple[float, float]:
@@ -84,6 +85,20 @@ def check_site_ranges(calcs: Mapping[str, Calculator], site_ranges: Mapping[str,
         _check_range(f"site normal range for '{iid}'", value)
 
 
+def _unit_factor(calc: Calculator, item: Item, unit: Any) -> tuple[str, float]:
+    """The declared unit matching `unit` (letter case ignored) and its factor to the item's
+    unit. An undeclared unit is an error: the engine never guesses a conversion."""
+    known = {item.unit: 1.0, **item.units}
+    if isinstance(unit, str):
+        for name, factor in known.items():
+            if name is not None and name.lower() == unit.strip().lower():
+                return name, factor
+    raise InputError(
+        f"{calc.id}.{item.id}: unit {unit!r} is not one this item takes; send the value in "
+        f"one of {list(known)}. It was not converted and not scored."
+    )
+
+
 def _bands_touched(calc: Calculator, iid: str, lo: float, hi: float) -> frozenset[int]:
     """Indices of the bands that contain some value in [lo, hi]. Bands are intervals bounded
     by thresholds, so probing both ends and each threshold inside, with a point on either
@@ -111,6 +126,7 @@ def _normalize(
     state: State = {}
     known_ranges: dict[str, tuple[float, float]] = {}
     normal_assumed: dict[str, tuple[float, float, str]] = {}
+    converted: dict[str, dict[str, Any]] = {}
     for iid, item in calc.items.items():
         v = inputs.get(iid)
         if v is None or (isinstance(v, str) and v.strip().lower() in UNKNOWN_WORDS):
@@ -139,12 +155,26 @@ def _normalize(
                 if rng
                 else ""
             )
+            units_text = (
+                f' (or {{"value": x, "unit": u}} with u one of {list(item.units)})'
+                if item.units
+                else ""
+            )
             hint = (
-                f"{calc.id}.{iid}: expected a number in {item.unit}, {normal_text}a range "
-                '{"min": x, "max": y} (either bound may be left out), or unknown'
+                f"{calc.id}.{iid}: expected a number in {item.unit}{units_text}, {normal_text}"
+                'a range {"min": x, "max": y} (either bound may be left out), or unknown'
                 + ("" if rng else "; this item has no normal range")
                 + f"; got {v!r}"
             )
+            given = v
+            factor, unit_name = 1.0, None
+            if isinstance(v, dict) and "unit" in v:
+                unit_name, factor = _unit_factor(calc, item, v["unit"])
+                v = {k: x for k, x in v.items() if k != "unit"}
+            if isinstance(v, dict) and "value" in v:
+                if set(v) != {"value"} or isinstance(v["value"], (str, dict)):
+                    raise InputError(hint)
+                v = v["value"]
 
             def accepted(x: float) -> float:
                 if item.accepts is not None and not item.accepts[0] <= x <= item.accepts[1]:
@@ -178,12 +208,18 @@ def _normalize(
                         or abs(x) == INF
                     ):
                         raise InputError(hint)
-                    bounds.append(accepted(float(x)) if key in v else float(x))
+                    bounds.append(accepted(float(x) * factor) if key in v else float(x))
                 lo, hi = bounds
                 if lo > hi:
                     raise InputError(f"{calc.id}.{iid}: range has min > max: {v!r}")
                 state[iid] = _bands_touched(calc, iid, lo, hi)
                 known_ranges[iid] = (lo, hi)
+                if factor != 1.0:
+                    converted[iid] = {
+                        "given": given,
+                        "range": [_bound(lo), _bound(hi)],
+                        "unit": item.unit,
+                    }
                 continue
             if isinstance(v, bool):
                 raise InputError(hint)
@@ -193,9 +229,11 @@ def _normalize(
                 raise InputError(hint) from None
             if x != x or abs(x) == INF:
                 raise InputError(hint)
-            accepted(x)
+            x = accepted(x * factor)
             state[iid] = _bands_touched(calc, iid, x, x)
-    return _Normalized(state, known_ranges, normal_assumed)
+            if factor != 1.0:
+                converted[iid] = {"given": given, "value": round(x, 6), "unit": item.unit}
+    return _Normalized(state, known_ranges, normal_assumed, converted)
 
 
 def _uncertain(state: State, iid: str) -> bool:
@@ -476,6 +514,8 @@ def evaluate(
             iid: {"range": [_fmt(lo), _fmt(hi)], "unit": calc.items[iid].unit, "source": source}
             for iid, (lo, hi, source) in norm.normal_assumed.items()
         }
+    if norm.converted:
+        result["converted"] = norm.converted
     judgment_pending = [d["item"] for d in decisive if d["kind"] == "judgment"]
     if judgment_pending:
         result["judgment_items_pending"] = judgment_pending
@@ -507,6 +547,8 @@ def schema(
             entry["unit"] = item.unit
             if item.accepts is not None:
                 entry["accepts"] = [_fmt(item.accepts[0]), _fmt(item.accepts[1])]
+            if item.units:
+                entry["other_units"] = list(item.units)
             ranged = 'a range {"min": x, "max": y} when the source gives only bounds'
             if item.id in ranges:
                 lo, hi, source = ranges[item.id]
@@ -582,7 +624,9 @@ def schema(
             "source does not mention it: never fill it in as absent or normal. A numeric item "
             "the source describes only as normal takes 'normal' if the item has a normal range, "
             "and is unknown otherwise; one the source gives only as bounds ('heart rate over "
-            "100') takes a range {\"min\": x, \"max\": y}. Never invent a number. Items of kind "
-            "'judgment' must come from the clinician, not from a note."
+            "100') takes a range {\"min\": x, \"max\": y}. Never invent a number. A value in "
+            "one of an item's other_units goes as {\"value\": x, \"unit\": u}: the tool "
+            "converts it. Items of kind 'judgment' must come from the clinician, not from a "
+            "note."
         ),
     }

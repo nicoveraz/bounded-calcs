@@ -141,6 +141,14 @@ Claude Desktop / Claude Code config:
 outside that range (an oxygen saturation of 0.97, an age of 16 in an adult score) is an error
 with an explanation, not a score.
 
+**Units.** Every numeric item has one unit, and a number sent alone is read in it. An item
+can also declare other units with their conversion factor: CURB-65 urea is in mmol/L and
+takes `{"value": 25, "unit": "bun_mg/dL"}` or `{"value": 54, "unit": "urea_mg/dL"}`. The
+engine converts, and the result says so under `converted`. A unit the item does not declare
+(a bare `mg/dL`, which does not say whether the laboratory reports urea or urea nitrogen) is
+an error: the engine never guesses a conversion. The accepted range is checked after
+conversion, so an unconverted BUN of 150 sent as mmol/L is refused too.
+
 **Site normal ranges.** "Normal" for a laboratory value depends on the laboratory. The
 default urea range (2.5 to 8 mmol/L) crosses the CURB-65 threshold of 7 on purpose, so "urea
 normal" is asked about when it matters. A site whose laboratory's upper limit is at most 7 can

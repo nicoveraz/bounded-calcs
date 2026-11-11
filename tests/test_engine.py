@@ -510,3 +510,91 @@ def test_accepted_range_is_per_calculator_and_in_the_schema():
 def test_site_normal_range_must_be_inside_the_accepted_range():
     with pytest.raises(InputError, match="outside what 'curb65' accepts"):
         evaluate(CURB, {"urea": "normal"}, normal_ranges={"urea": [2.5, 70]})
+
+
+# --- units: the engine converts declared units and refuses the rest ----------------------------
+
+_CURB_REST = {"confusion": "absent", "resp_rate": 18, "sbp": 120, "dbp": 80, "age": 70}
+
+
+def test_a_declared_unit_is_converted_to_the_item_unit():
+    # BUN 28.014 mg/dL / 2.8014 = 10 mmol/L of urea; urea 60.06 mg/dL / 6.006 = 10 mmol/L.
+    plain = evaluate(CURB, _CURB_REST | {"urea": 10})
+    for given in ({"value": 28.014, "unit": "bun_mg/dL"}, {"value": 60.06, "unit": "urea_mg/dL"}):
+        r = evaluate(CURB, _CURB_REST | {"urea": given})
+        assert (r["score"], r["category"]) == (plain["score"], plain["category"])
+        assert r["converted"] == {"urea": {"given": given, "value": 10.0, "unit": "mmol/L"}}
+    assert "converted" not in plain or not plain["converted"]
+
+
+def test_conversion_decides_the_threshold():
+    # CURB-65 scores urea > 7 mmol/L. BUN 19 mg/dL = 6.78 mmol/L (no point); BUN 20 mg/dL =
+    # 7.14 mmol/L (one point). Read as mmol/L, both numbers would score.
+    below = evaluate(CURB, _CURB_REST | {"urea": {"value": 19, "unit": "bun_mg/dL"}})
+    above = evaluate(CURB, _CURB_REST | {"urea": {"value": 20, "unit": "bun_mg/dL"}})
+    assert (below["score"], above["score"]) == (1, 2)  # age 70 gives the other point
+
+
+def test_the_item_unit_and_letter_case_are_taken():
+    r = evaluate(CURB, _CURB_REST | {"urea": {"value": 10, "unit": "MMOL/L"}})
+    assert r["score"] == 2 and not r.get("converted")
+    r = evaluate(CURB, _CURB_REST | {"urea": {"value": 28.014, "unit": "BUN_mg/dl"}})
+    assert r["score"] == 2
+
+
+def test_bounds_are_converted_too():
+    # Urea over 60.06 mg/dL is over 10 mmol/L: above the threshold whatever the value.
+    r = evaluate(CURB, _CURB_REST | {"urea": {"min": 60.06, "unit": "urea_mg/dL"}})
+    assert r["settled"] and r["score"] == 2
+    assert r["converted"]["urea"]["range"][0] == pytest.approx(10.0)
+
+
+@pytest.mark.parametrize(
+    "given",
+    [
+        {"value": 25, "unit": "mg/dL"},  # which analyte? BUN and urea differ by a factor of 2.1
+        {"value": 25, "unit": "g/L"},
+        {"value": 25, "unit": 3},
+        {"value": 25, "unit": None},
+    ],
+)
+def test_an_undeclared_unit_is_an_error_never_a_guess(given):
+    with pytest.raises(InputError, match="is not one this item takes"):
+        evaluate(CURB, _CURB_REST | {"urea": given})
+
+
+def test_a_unit_on_an_item_without_other_units_must_be_its_own():
+    evaluate(CURB, {"sbp": {"value": 120, "unit": "mmHg"}})
+    with pytest.raises(InputError, match="is not one this item takes"):
+        evaluate(CURB, {"sbp": {"value": 16, "unit": "kPa"}})
+
+
+def test_the_accepted_range_applies_after_conversion():
+    # BUN 150 mg/dL = 53.5 mmol/L: inside 1 to 60. As a bare number 150 is refused, and so is
+    # a BUN of 400 mg/dL (142.8 mmol/L).
+    evaluate(CURB, {"urea": {"value": 150, "unit": "bun_mg/dL"}})
+    for given in (150, {"value": 400, "unit": "bun_mg/dL"}):
+        with pytest.raises(InputError, match="outside the values this calculator accepts"):
+            evaluate(CURB, {"urea": given})
+
+
+@pytest.mark.parametrize(
+    "given",
+    [
+        {"value": "normal", "unit": "bun_mg/dL"},
+        {"value": 25, "min": 20, "unit": "bun_mg/dL"},
+        {"unit": "bun_mg/dL"},
+        {"value": True, "unit": "bun_mg/dL"},
+    ],
+)
+def test_malformed_values_with_a_unit_are_errors(given):
+    with pytest.raises(InputError):
+        evaluate(CURB, {"urea": given})
+
+
+def test_other_units_are_in_the_schema():
+    s = schema(CURB)
+    items = {i["id"]: i for i in s["items"]}
+    assert items["urea"]["other_units"] == ["bun_mg/dL", "urea_mg/dL"]
+    assert "other_units" not in items["sbp"]
+    assert "other_units" in s["input_rules"]
