@@ -1,0 +1,111 @@
+id: bisap
+name: Bedside Index for Severity in Acute Pancreatitis (BISAP)
+version: 1
+purpose: >-
+  Early risk of in-hospital mortality in acute pancreatitis, from five findings during the
+  first 24 hours of hospitalisation. The result is a score from 0 to 5; the source reports
+  mortality by score and the parts read define no decision categories.
+citation: >-
+  Wu BU, Johannes RS, Sun X, Tabak Y, Conwell DL, Banks PA. The early prediction of mortality
+  in acute pancreatitis: a large population-based study. Gut 2008;57(12):1698-1703.
+  doi:10.1136/gut.2008.152702. PMID 18519429. Methods (candidate risk factors, definitions)
+  and results (the scoring sentence). [P]
+higher_is_higher_risk: true
+notes:
+  - "One point for each of the following during the first 24 h (Wu 2008): blood urea nitrogen
+    over 25 mg/dL; impaired mental status; systemic inflammatory response syndrome (SIRS); age
+    over 60 years; pleural effusion."
+  - "SIRS is the presence of 2 or more of four criteria (Wu 2008, methods): pulse over 90
+    beats/min; respirations over 20/min or PaCO2 under 32 mmHg; temperature over 38 or under
+    36 degrees C; white cell count over 12 000 or under 4000 cells/mm3 or over 10% immature
+    neutrophils (bands). It is worth one point however many criteria are met."
+  - "Score only: no categories are defined here. A cut-off used elsewhere (for example 3 or
+    more) must come from a source before it is added."
+  - "Source read on the publisher's site (gut.bmj.com) on 2026-11-11: the methods list of
+    risk factors with their definitions and the sentences that state the score. The whole
+    paper was not read."
+
+items:
+  - id: bun
+    label: Blood urea nitrogen (BUN)
+    type: numeric
+    kind: measurement
+    unit: mg/dL
+    accepts: [2.8, 168]
+    units:
+      urea_mmol/L: {multiply_by: 2.8014, label: "urea in mmol/L"}
+      urea_mg/dL: {divide_by: 2.1439, label: "urea (not urea nitrogen) in mg/dL"}
+    notes:
+      - "Conversion factors derived from calc-bounds (units.py): 1 mmol/L of urea is 2.8014
+        mg/dL of urea nitrogen and 6.006 mg/dL of urea, so urea in mg/dL divided by 2.1439
+        (6.006 / 2.8014) is urea nitrogen in mg/dL."
+      - "TODO(physician-review): accepted range 2.8 to 168 mg/dL is the CURB-65 urea range
+        (1 to 60 mmol/L, from calc-bounds) converted to urea nitrogen. No source gives a range
+        for this score."
+      - "TODO(physician-review): the source says 'during the first 24 h' without saying which
+        value counts when several are measured. Reading chosen: the criterion is met if any
+        value in the first 24 h is over 25 mg/dL; the caller sends the highest."
+  - id: impaired_mental_status
+    label: >-
+      Impaired mental status: any record of disorientation, lethargy, somnolence, coma or
+      stupor
+    type: boolean
+    kind: finding
+  - id: sirs_pulse_over_90
+    label: Pulse over 90 beats/min
+    type: boolean
+    kind: finding
+  - id: sirs_respiratory
+    label: Respirations over 20/min or PaCO2 under 32 mmHg
+    type: boolean
+    kind: finding
+  - id: sirs_temperature
+    label: Temperature over 38 or under 36 degrees C
+    type: boolean
+    kind: finding
+  - id: sirs_white_cells
+    label: >-
+      White cell count over 12 000 or under 4000 cells/mm3, or over 10% immature neutrophils
+      (bands)
+    type: boolean
+    kind: finding
+  - id: age
+    label: Age
+    type: numeric
+    kind: measurement
+    unit: years
+    accepts: [18, 110]
+    notes:
+      - Accepted range taken from calc-bounds (docs/CALCULATOR_NOTES.md, parameter modelling choices).
+      - "TODO(physician-review): ages below 18 are rejected as outside what this calculator
+        accepts (18 to 110 years, the range the other adult calculators use). The parts of the
+        source that were read do not state an age range."
+  - id: pleural_effusion
+    label: Pleural effusion on chest radiography or CT
+    type: boolean
+    kind: finding
+
+components:
+  - id: bun
+    label: BUN > 25 mg/dL
+    rule: bands
+    item: bun
+    bands:
+      - {gt: 25, points: 1}
+      - {points: 0}
+  - {id: impaired_mental_status, label: Impaired mental status, rule: present, item: impaired_mental_status, points: 1}
+  - id: sirs
+    label: SIRS (2 or more of four criteria)
+    rule: count
+    items: [sirs_pulse_over_90, sirs_respiratory, sirs_temperature, sirs_white_cells]
+    points:
+      - {gte: 2, points: 1}
+      - {points: 0}
+  - id: age
+    label: Age > 60 years
+    rule: bands
+    item: age
+    bands:
+      - {gt: 60, points: 1}
+      - {points: 0}
+  - {id: pleural_effusion, label: Pleural effusion, rule: present, item: pleural_effusion, points: 1}
