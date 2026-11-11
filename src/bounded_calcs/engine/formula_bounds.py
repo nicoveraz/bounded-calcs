@@ -22,7 +22,7 @@ from typing import Any
 from bounded_calcs.engine.inputs import _Normalized
 from bounded_calcs.engine.state import _fmt, _uncertain
 from bounded_calcs.formula import grid
-from bounded_calcs.spec import Calculator
+from bounded_calcs.model import Calculator
 
 Domains = dict[str, Any]
 """Per item: a list of values (yes/no and ordinal items) or a (lo, hi) pair (numeric items)."""

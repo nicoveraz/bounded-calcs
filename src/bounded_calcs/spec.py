@@ -51,7 +51,8 @@ Points may be negative. They must be whole or half numbers so that sums stay exa
 Categories are listed from lowest to highest; a patient gets the last one whose condition
 holds. A condition is a lower bound (`min` or `gt`) on the total score, or, with
 `group: <name>`, on the points of one group of components. A component joins a group with the
-same key, `group: <name>`; its points still count in the total. Groups express rules that a single total cannot:
+same key, `group: <name>`; its points still count in the total. Groups express rules that a
+single total cannot:
   tiers          "imaging if any high-risk criterion, else observe if any medium-risk one":
                  the criteria of each tier form a group, and each category names its group
   a cut-off that depends on an item (different thresholds for men and women): the item's
@@ -66,6 +67,10 @@ Score-only calculators: `categories` may be left out when the source gives a sco
 decision categories (a severity scale). The result is then the score: it is settled when the
 score is exact, and every unknown item that can change the score is a question.
 
+Where things live: the dataclasses a spec loads into are in `model.py`; each rule reads its
+own keys in its module under `engine/rules/`; this module reads the rest (items, categories,
+the top level) and puts them together.
+
 The loader is deliberately strict: unknown keys, values YAML did not read as text, bands that
 can never match and non-exact points are errors, because each of them is a silent wrong
 answer otherwise.
@@ -74,26 +79,57 @@ answer otherwise.
 from __future__ import annotations
 
 import dataclasses
-import itertools
 import math
-import re
-from collections.abc import Iterable, Sequence
-from dataclasses import dataclass, field
 from importlib import resources
 from pathlib import Path
 from typing import Any
 
 import yaml
 
+from bounded_calcs._validate import (
+    _LEVEL,
+    _NOT_TEXT,
+    SpecError,
+    _list,
+    _name,
+    _number,
+    _only,
+    _req,
+    _text,
+    _texts,
+)
+from bounded_calcs.engine.rules import RULES, component_keys, parse_component
 from bounded_calcs.formula import Formula, FormulaError, parse_formula
+from bounded_calcs.model import (
+    BAND_OPS,
+    ITEM_KINDS,
+    ITEM_TYPES,
+    Band,
+    Calculator,
+    Category,
+    Component,
+    Item,
+    band_probes,
+)
 
-ITEM_TYPES = {"boolean", "ordinal", "numeric"}
-ITEM_KINDS = {"finding", "measurement", "judgment"}
-RULE_TYPES = {"present", "absent", "levels", "bands", "count", "any_of"}
-BAND_OPS = ("gte", "gt", "lte", "lt")
+__all__ = [
+    "BAND_OPS",
+    "ITEM_KINDS",
+    "ITEM_TYPES",
+    "RULE_TYPES",
+    "Band",
+    "Calculator",
+    "Category",
+    "Component",
+    "Item",
+    "SpecError",
+    "band_probes",
+    "load_builtin",
+    "load_file",
+    "parse",
+]
 
-_ID = re.compile(r"^[a-z][a-z0-9_]*$")
-_LEVEL = re.compile(r"^[a-z0-9][a-z0-9_]*$")
+RULE_TYPES = set(RULES)
 
 _TOP_KEYS = {
     "id", "name", "version", "purpose", "citation", "references", "higher_is_higher_risk",
@@ -103,484 +139,141 @@ _ITEM_KEYS = {
     "id", "label", "type", "kind", "levels", "unit", "units", "normal", "accepts", "question",
     "notes",
 }  # fmt: skip
-_COMPONENT_KEYS = {
-    "present": {"id", "label", "rule", "item", "points", "group"},
-    "absent": {"id", "label", "rule", "item", "points", "group"},
-    "levels": {"id", "label", "rule", "item", "points", "group"},
-    "bands": {"id", "label", "rule", "item", "bands", "group"},
-    "count": {"id", "label", "rule", "items", "points", "override", "override_points", "group"},
-    "any_of": {"id", "label", "rule", "conditions", "points", "group"},
-}
-_BAND_KEYS = {*BAND_OPS, "points"}
-_CONDITION_KEYS = {*BAND_OPS, "item"}
 _CATEGORY_KEYS = {"name", "label", "min", "gt", "group", "meaning"}
 
-_NOT_TEXT = (
-    "YAML reads bare yes/no/on/off/true/false and numbers as non-text, and turns an unquoted "
-    "'key: value' into a mapping; wrap the value in double quotes"
-)
+
+# --- items ----------------------------------------------------------------------------------
 
 
-class SpecError(ValueError):
-    pass
+def _range(raw: dict[str, Any], key: str, where: str, *, may_be_a_point: bool) -> tuple[float, float]:
+    """A `[lo, hi]` pair of a numeric item (`normal` or `accepts`)."""
+    rng = raw[key]
+    if not isinstance(rng, list) or len(rng) != 2:
+        raise SpecError(f"{where}: '{key}' must be a list [lo, hi], got {rng!r}")
+    lo, hi = (_number(x, where, f"'{key}'") for x in rng)
+    if lo > hi or (lo == hi and not may_be_a_point):
+        sign = "<=" if may_be_a_point else "<"
+        raise SpecError(f"{where}: '{key}' must be [lo, hi] with lo {sign} hi, got {rng!r}")
+    return lo, hi
 
 
-@dataclass(frozen=True)
-class Item:
-    id: str
-    label: str
-    type: str
-    kind: str
-    levels: tuple[str, ...] = ()
-    unit: str | None = None
-    question: str | None = None
-    notes: tuple[str, ...] = ()
-    normal: tuple[float, float] | None = None
-    accepts: tuple[float, float] | None = None
-    units: dict[str, float] = field(default_factory=dict)  # other unit -> factor to `unit`
-    unit_labels: dict[str, str] = field(default_factory=dict)  # other unit -> how notes write it
+def _units(raw: dict[str, Any], where: str) -> tuple[dict[str, float], dict[str, str]]:
+    """The other units of a numeric item: each unit's factor to the item's own unit, and the
+    label that says what the unit means."""
+    units: dict[str, float] = {}
+    labels: dict[str, str] = {}
+    if not isinstance(raw["units"], dict) or not raw["units"]:
+        raise SpecError(f"{where}: 'units' must map each unit to a conversion")
+    for uname, conv in raw["units"].items():
+        uw = f"{where} unit {uname!r}"
+        if not isinstance(uname, str) or not uname.strip() or uname != uname.strip():
+            raise SpecError(f"{uw}: the unit must be text; {_NOT_TEXT}")
+        if uname.lower() == str(raw["unit"]).lower() or uname.lower() in {u.lower() for u in units}:
+            raise SpecError(f"{uw}: listed twice, or the same as the item's own unit")
+        if not isinstance(conv, dict):
+            raise SpecError(f"{uw}: needs exactly one of 'multiply_by' or 'divide_by'")
+        conv = dict(conv)
+        if "label" in conv:  # what the unit means and how a note writes it
+            labels[uname] = _text(conv.pop("label"), uw, "label")
+        if len(conv) != 1 or next(iter(conv)) not in ("multiply_by", "divide_by"):
+            raise SpecError(f"{uw}: needs exactly one of 'multiply_by' or 'divide_by'")
+        ((how, amount),) = conv.items()
+        amount = _number(amount, uw, f"'{how}'")
+        if amount <= 0:
+            raise SpecError(f"{uw}: '{how}' must be greater than 0")
+        units[uname] = amount if how == "multiply_by" else 1.0 / amount
+    return units, labels
 
 
-@dataclass(frozen=True)
-class Band:
-    op: str | None  # None = default band
-    value: float | None
-    points: float
+def _item(raw: Any, where: str, taken: set[str]) -> Item:
+    _only(raw, _ITEM_KEYS, f"{where} item")
+    iid = _name(_req(raw, "id", where), f"{where} item", "id")
+    iw = f"{where} item '{iid}'"
+    if iid in taken:
+        raise SpecError(f"{iw}: duplicate id")
+    itype = _req(raw, "type", iw)
+    kind = _req(raw, "kind", iw)
+    if not isinstance(itype, str) or itype not in ITEM_TYPES:
+        raise SpecError(f"{iw}: type must be one of {sorted(ITEM_TYPES)}")
+    if not isinstance(kind, str) or kind not in ITEM_KINDS:
+        raise SpecError(f"{iw}: kind must be one of {sorted(ITEM_KINDS)}")
+    numeric = itype == "numeric"
 
-    def matches(self, x: float) -> bool:
-        if self.op is None:
-            return True
-        assert self.value is not None
-        return {
-            "gte": x >= self.value,
-            "gt": x > self.value,
-            "lte": x <= self.value,
-            "lt": x < self.value,
-        }[self.op]
+    raw_levels = _list(raw["levels"], iw, "levels") if "levels" in raw else []
+    levels = tuple(_name(v, iw, "level", _LEVEL) for v in raw_levels)
+    if (itype == "ordinal") != bool(levels):
+        raise SpecError(f"{iw}: 'levels' is required for ordinal items and only for them")
+    if len(set(levels)) != len(levels):
+        raise SpecError(f"{iw}: duplicate levels")
+    if "unknown" in levels:
+        raise SpecError(f"{iw}: 'unknown' is reserved and cannot be a level")
+    if numeric != ("unit" in raw):
+        raise SpecError(f"{iw}: 'unit' is required for numeric items and only for them")
+    for key in ("normal", "accepts", "units"):
+        if key in raw and not numeric:
+            raise SpecError(f"{iw}: '{key}' is only for numeric items")
 
-    def describe(self, unit: str | None) -> str:
-        if self.op is None:
-            return "otherwise"
-        sym = {"gte": ">=", "gt": ">", "lte": "<=", "lt": "<"}[self.op]
-        return f"{sym} {self.value:g}" + (f" {unit}" if unit else "")
-
-
-@dataclass(frozen=True)
-class Component:
-    id: str
-    label: str
-    rule: str
-    items: tuple[str, ...]
-    points: float | None = None  # present, absent, any_of
-    level_points: dict[str, float] = field(default_factory=dict)  # levels
-    bands: tuple[Band, ...] = ()  # bands, and count thresholds (op gte on the count)
-    override: str | None = None  # count
-    override_points: float | None = None  # count
-    conditions: dict[str, Band] = field(default_factory=dict)  # any_of: numeric item -> "met"
-    group: str | None = None
-
-
-@dataclass(frozen=True)
-class Category:
-    name: str
-    label: str
-    lower: float  # points >= lower (or > lower when lower_strict)
-    lower_strict: bool
-    meaning: str = ""
-    on: str | None = None  # the group whose points are compared; None = the total score
-
-    def admits(self, points: float) -> bool:
-        return points > self.lower if self.lower_strict else points >= self.lower
-
-    def condition(self) -> str:
-        if self.lower == -math.inf:
-            return "lowest"
-        what = "score" if self.on is None else f"points in group '{self.on}'"
-        return f"{what} {'>' if self.lower_strict else '>='} {self.lower:g}"
+    normal = _range(raw, "normal", iw, may_be_a_point=True) if "normal" in raw else None
+    accepts = _range(raw, "accepts", iw, may_be_a_point=False) if "accepts" in raw else None
+    if normal and accepts and not (accepts[0] <= normal[0] and normal[1] <= accepts[1]):
+        raise SpecError(f"{iw}: the normal range must lie inside 'accepts'")
+    units, unit_labels = _units(raw, iw) if "units" in raw else ({}, {})
+    return Item(
+        id=iid,
+        label=_text(_req(raw, "label", iw), iw, "label"),
+        type=itype,
+        kind=kind,
+        levels=levels,
+        unit=_text(raw["unit"], iw, "unit") if "unit" in raw else None,
+        question=_text(raw["question"], iw, "question") if "question" in raw else None,
+        notes=_texts(raw.get("notes", []), iw, "notes"),
+        normal=normal,
+        accepts=accepts,
+        units=units,
+        unit_labels=unit_labels,
+    )
 
 
-@dataclass(frozen=True)
-class Calculator:
-    id: str
-    name: str
-    version: int
-    citation: str
-    references: tuple[str, ...]
-    purpose: str
-    higher_is_higher_risk: bool
-    items: dict[str, Item]
-    components: tuple[Component, ...]
-    # Lowest first; the last whose condition holds applies. Empty: a score-only calculator.
-    categories: tuple[Category, ...]
-    notes: tuple[str, ...]
-    groups: tuple[str, ...] = ()  # component groups, in order of first use
-    formula: Formula | None = None  # set for a formula calculator, which has no components
-
-    def category(self, score: float, group_points: Sequence[float] = ()) -> Category:
-        """The category for a total score and, for calculators with groups, the points of
-        each group (in the order of `groups`)."""
-        if not self.categories:
-            raise ValueError(f"{self.id}: a score-only calculator has no categories")
-        if len(group_points) != len(self.groups):
-            raise ValueError(f"{self.id}: expected the points of groups {list(self.groups)}")
-        found = self.categories[0]
-        for c in self.categories[1:]:
-            points = score if c.on is None else group_points[self.groups.index(c.on)]
-            if c.admits(points):
-                found = c
-        return found
-
-    def by_risk(self, names: set[Any]) -> list[Any]:
-        """Category names ordered from lowest to highest risk (for a score-only calculator,
-        scores in that order)."""
-        if not self.categories:
-            return sorted(names, reverse=not self.higher_is_higher_risk)
-        order = [c.name for c in self.categories]
-        if not self.higher_is_higher_risk:
-            order = order[::-1]
-        return [n for n in order if n in names]
-
-    def component_of(self, item_id: str) -> Component:
-        for c in self.components:
-            if item_id in c.items:
-                return c
-        raise KeyError(item_id)
-
-    def numeric_bands(self, item_id: str) -> tuple[Band, ...]:
-        """The bands a numeric item is resolved into. For an any_of condition: [met, not met]."""
-        if self.formula is not None:  # a formula uses the number itself: one band, everything
-            return (Band(None, None, 0.0),)
-        comp = self.component_of(item_id)
-        if comp.rule == "bands":
-            return comp.bands
-        met = comp.conditions[item_id]
-        return (met, Band(None, None, 0.0))
+# --- components -----------------------------------------------------------------------------
 
 
-def band_probes(bands: Sequence[Band]) -> list[float]:
-    """Numbers that land in every region the thresholds cut the number line into: each
-    threshold itself and a point on either side of it."""
-    ts = sorted({b.value for b in bands if b.value is not None})
-    if not ts:
-        return [0.0]
-    gap = min((b - a for a, b in itertools.pairwise(ts)), default=1.0)
-    d = min(0.5, gap / 2)
-    return sorted({x for t in ts for x in (t - d, t, t + d)})
+def _component(raw: Any, where: str, items: dict[str, Item]) -> Component:
+    """One component: the keys every rule shares here, the rule's own in its module."""
+    if not isinstance(raw, dict):
+        raise SpecError(f"{where}: each component must be a mapping, got {raw!r}")
+    comp_id = _name(_req(raw, "id", where), f"{where} component", "id")
+    cw = f"{where} component '{comp_id}'"
+    rule = _req(raw, "rule", cw)
+    if not isinstance(rule, str) or rule not in RULES:
+        raise SpecError(f"{cw}: rule must be one of {sorted(RULES)}")
+    _only(raw, component_keys(rule), cw)
+    label = _text(raw.get("label", comp_id), cw, "label")
+    comp = parse_component(raw, cw, comp_id, label, rule, items)
+    if "group" in raw:
+        comp = dataclasses.replace(comp, group=_name(raw["group"], cw, "group"))
+    return comp
 
 
-# --- validation helpers ---------------------------------------------------------------------
-
-
-def _req(d: dict[str, Any], key: str, where: str) -> Any:
-    if key not in d:
-        raise SpecError(f"{where}: missing '{key}'")
-    return d[key]
-
-
-def _only(d: Any, allowed: set[str], where: str) -> None:
-    if not isinstance(d, dict):
-        raise SpecError(f"{where}: expected a mapping, got {d!r}. {_NOT_TEXT}")
-    extra = sorted(str(k) for k in d if k not in allowed)
-    if extra:
-        raise SpecError(f"{where}: unknown key(s) {extra}; allowed: {sorted(allowed)}")
-
-
-def _list(value: Any, where: str, what: str) -> list[Any]:
-    if not isinstance(value, list) or not value:
-        raise SpecError(f"{where}: '{what}' must be a non-empty list")
-    return value
-
-
-def _text(value: Any, where: str, what: str) -> str:
-    if not isinstance(value, str) or not value.strip():
-        raise SpecError(f"{where}: {what} must be text, got {value!r}. {_NOT_TEXT}")
-    return value
-
-
-def _texts(value: Any, where: str, what: str) -> tuple[str, ...]:
-    if not isinstance(value, (list, tuple)):
-        raise SpecError(f"{where}: {what} must be a list")
-    return tuple(_text(v, where, f"each entry of {what}") for v in value)
-
-
-def _name(value: Any, where: str, what: str, pattern: re.Pattern[str] = _ID) -> str:
-    if not isinstance(value, str) or not pattern.match(value):
-        raise SpecError(
-            f"{where}: {what} {value!r} must be lowercase snake_case text (a-z, 0-9, _). "
-            f"{_NOT_TEXT}"
-        )
-    return value
-
-
-def _number(value: Any, where: str, what: str) -> float:
-    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
-        raise SpecError(f"{where}: {what} must be a number, got {value!r}")
-    return float(value)
-
-
-def _points(value: Any, where: str) -> float:
-    p = _number(value, where, "points")
-    if not (p * 2).is_integer():
-        raise SpecError(
-            f"{where}: points {value!r} must be a whole or half number so that sums stay exact"
-        )
-    return p
-
-
-def _reachable(bands: Sequence[Band], probes: Iterable[float], where: str) -> None:
-    hit = {next(i for i, b in enumerate(bands) if b.matches(x)) for x in probes}
-    for i, b in enumerate(bands):
-        if i not in hit:
-            raise SpecError(
-                f"{where}: entry {i + 1} ({b.describe(None)}, {b.points:g} points) can never "
-                "apply because an earlier entry always matches first. The first matching entry "
-                "wins: list the most extreme threshold first (e.g. gte 65 before gte 45)"
-            )
-
-
-def _band(raw: Any, where: str) -> Band:
-    _only(raw, _BAND_KEYS, where)
-    ops = [op for op in BAND_OPS if op in raw]
-    if len(ops) > 1:
-        raise SpecError(f"{where}: band has more than one condition")
-    pts = _points(_req(raw, "points", where), where)
-    if not ops:
-        return Band(None, None, pts)
-    return Band(ops[0], _number(raw[ops[0]], where, f"'{ops[0]}'"), pts)
-
-
-def _bands(raw: Any, where: str) -> tuple[Band, ...]:
-    bands = tuple(_band(b, where) for b in _list(raw, where, "bands"))
-    if bands[-1].op is not None:
-        raise SpecError(f"{where}: the last band must be a default (points only)")
-    if any(b.op is None for b in bands[:-1]):
-        raise SpecError(f"{where}: only the last band may be a default")
-    return bands
-
-
-# --- parsing --------------------------------------------------------------------------------
-
-
-def parse(data: Any) -> Calculator:
-    _only(data, _TOP_KEYS, "spec")
-    cid = _name(_req(data, "id", "spec"), "spec", "id")
-    where = f"calculator '{cid}'"
-
-    items: dict[str, Item] = {}
-    for raw in _list(_req(data, "items", where), where, "items"):
-        _only(raw, _ITEM_KEYS, f"{where} item")
-        iid = _name(_req(raw, "id", where), f"{where} item", "id")
-        iw = f"{where} item '{iid}'"
-        if iid in items:
-            raise SpecError(f"{iw}: duplicate id")
-        itype = _req(raw, "type", iw)
-        kind = _req(raw, "kind", iw)
-        if itype not in ITEM_TYPES:
-            raise SpecError(f"{iw}: type must be one of {sorted(ITEM_TYPES)}")
-        if kind not in ITEM_KINDS:
-            raise SpecError(f"{iw}: kind must be one of {sorted(ITEM_KINDS)}")
-        raw_levels = _list(raw["levels"], iw, "levels") if "levels" in raw else []
-        levels = tuple(_name(v, iw, "level", _LEVEL) for v in raw_levels)
-        if (itype == "ordinal") != bool(levels):
-            raise SpecError(f"{iw}: 'levels' is required for ordinal items and only for them")
-        if len(set(levels)) != len(levels):
-            raise SpecError(f"{iw}: duplicate levels")
-        if "unknown" in levels:
-            raise SpecError(f"{iw}: 'unknown' is reserved and cannot be a level")
-        if (itype == "numeric") != ("unit" in raw):
-            raise SpecError(f"{iw}: 'unit' is required for numeric items and only for them")
-        normal = None
-        if "normal" in raw:
-            if itype != "numeric":
-                raise SpecError(f"{iw}: 'normal' is only for numeric items")
-            rng = raw["normal"]
-            if not isinstance(rng, list) or len(rng) != 2:
-                raise SpecError(f"{iw}: 'normal' must be a list [lo, hi], got {rng!r}")
-            lo, hi = (_number(x, iw, "'normal'") for x in rng)
-            if lo > hi:
-                raise SpecError(f"{iw}: 'normal' must be [lo, hi] with lo <= hi, got {rng!r}")
-            normal = (lo, hi)
-        accepts = None
-        if "accepts" in raw:
-            if itype != "numeric":
-                raise SpecError(f"{iw}: 'accepts' is only for numeric items")
-            rng = raw["accepts"]
-            if not isinstance(rng, list) or len(rng) != 2:
-                raise SpecError(f"{iw}: 'accepts' must be a list [lo, hi], got {rng!r}")
-            lo, hi = (_number(x, iw, "'accepts'") for x in rng)
-            if lo >= hi:
-                raise SpecError(f"{iw}: 'accepts' must be [lo, hi] with lo < hi, got {rng!r}")
-            if normal is not None and not (lo <= normal[0] and normal[1] <= hi):
-                raise SpecError(f"{iw}: the normal range must lie inside 'accepts'")
-            accepts = (lo, hi)
-        units: dict[str, float] = {}
-        unit_labels: dict[str, str] = {}
-        if "units" in raw:
-            if itype != "numeric":
-                raise SpecError(f"{iw}: 'units' is only for numeric items")
-            if not isinstance(raw["units"], dict) or not raw["units"]:
-                raise SpecError(f"{iw}: 'units' must map each unit to a conversion")
-            for uname, conv in raw["units"].items():
-                uw = f"{iw} unit {uname!r}"
-                if not isinstance(uname, str) or not uname.strip() or uname != uname.strip():
-                    raise SpecError(f"{uw}: the unit must be text; {_NOT_TEXT}")
-                if uname.lower() == str(raw["unit"]).lower() or uname.lower() in {
-                    u.lower() for u in units
-                }:
-                    raise SpecError(f"{uw}: listed twice, or the same as the item's own unit")
-                if not isinstance(conv, dict):
-                    raise SpecError(f"{uw}: needs exactly one of 'multiply_by' or 'divide_by'")
-                conv = dict(conv)
-                if "label" in conv:  # what the unit means and how a note writes it
-                    unit_labels[uname] = _text(conv.pop("label"), uw, "label")
-                if len(conv) != 1:
-                    raise SpecError(f"{uw}: needs exactly one of 'multiply_by' or 'divide_by'")
-                ((how, amount),) = conv.items()
-                if how not in ("multiply_by", "divide_by"):
-                    raise SpecError(f"{uw}: needs exactly one of 'multiply_by' or 'divide_by'")
-                amount = _number(amount, uw, f"'{how}'")
-                if amount <= 0:
-                    raise SpecError(f"{uw}: '{how}' must be greater than 0")
-                units[uname] = amount if how == "multiply_by" else 1.0 / amount
-        items[iid] = Item(
-            id=iid,
-            label=_text(_req(raw, "label", iw), iw, "label"),
-            type=itype,
-            kind=kind,
-            levels=levels,
-            unit=_text(raw["unit"], iw, "unit") if "unit" in raw else None,
-            question=_text(raw["question"], iw, "question") if "question" in raw else None,
-            notes=_texts(raw.get("notes", []), iw, "notes"),
-            normal=normal,
-            accepts=accepts,
-            units=units,
-            unit_labels=unit_labels,
-        )
-
-    formula: Formula | None = None
-    if "formula" in data:
-        if "components" in data:
-            raise SpecError(f"{where}: a calculator has 'components' or a 'formula', not both")
-        try:
-            formula = parse_formula(
-                data["formula"],
-                where,
-                {i: it.accepts for i, it in items.items() if it.type == "numeric"},
-                {i: it.levels for i, it in items.items() if it.type == "ordinal"},
-                [i for i, it in items.items() if it.type == "boolean"],
-            )
-        except FormulaError as e:
-            raise SpecError(str(e)) from None
-
+def _components(data: dict[str, Any], where: str, items: dict[str, Item]) -> list[Component]:
     components: list[Component] = []
     owner: dict[str, str] = {}
-    raw_components = [] if formula else _list(_req(data, "components", where), where, "components")
-    for raw in raw_components:
-        if not isinstance(raw, dict):
-            raise SpecError(f"{where}: each component must be a mapping, got {raw!r}")
-        comp_id = _name(_req(raw, "id", where), f"{where} component", "id")
-        cw = f"{where} component '{comp_id}'"
-        rule = _req(raw, "rule", cw)
-        if rule not in RULE_TYPES:
-            raise SpecError(f"{cw}: rule must be one of {sorted(RULE_TYPES)}")
-        _only(raw, _COMPONENT_KEYS[rule], cw)
-        label = _text(raw.get("label", comp_id), cw, "label")
-
-        def item_of(iid: Any, want: str) -> str:
-            if iid not in items:
-                raise SpecError(f"{cw}: unknown item {iid!r}")
-            if items[iid].type != want:
-                raise SpecError(f"{cw}: item '{iid}' must be {want} for rule '{rule}'")
-            return iid
-
-        if rule in ("present", "absent"):
-            iid = item_of(_req(raw, "item", cw), "boolean")
-            comp = Component(
-                comp_id, label, rule, (iid,), points=_points(_req(raw, "points", cw), cw)
-            )
-        elif rule == "levels":
-            iid = item_of(_req(raw, "item", cw), "ordinal")
-            raw_pts = _req(raw, "points", cw)
-            if not isinstance(raw_pts, dict) or set(raw_pts) != set(items[iid].levels):
-                raise SpecError(
-                    f"{cw}: points must be a mapping with exactly the levels of '{iid}' "
-                    f"({list(items[iid].levels)}) as keys, got {raw_pts!r}. {_NOT_TEXT}"
-                )
-            pts = {k: _points(v, cw) for k, v in raw_pts.items()}
-            comp = Component(comp_id, label, rule, (iid,), level_points=pts)
-        elif rule == "bands":
-            iid = item_of(_req(raw, "item", cw), "numeric")
-            bands = _bands(_req(raw, "bands", cw), cw)
-            _reachable(bands, band_probes(bands), cw)
-            comp = Component(comp_id, label, rule, (iid,), bands=bands)
-        elif rule == "any_of":
-            conds: dict[str, Band] = {}
-            members_list: list[str] = []
-            for c in _list(_req(raw, "conditions", cw), cw, "conditions"):
-                _only(c, _CONDITION_KEYS, f"{cw} condition")
-                iid = _req(c, "item", cw)
-                if iid not in items:
-                    raise SpecError(f"{cw}: unknown item {iid!r}")
-                if iid in members_list:
-                    raise SpecError(f"{cw}: item '{iid}' appears twice")
-                ops = [op for op in BAND_OPS if op in c]
-                if items[iid].type == "boolean":
-                    if ops:
-                        raise SpecError(f"{cw}: boolean condition '{iid}' takes no threshold")
-                elif items[iid].type == "numeric":
-                    if len(ops) != 1:
-                        raise SpecError(f"{cw}: numeric condition '{iid}' needs one threshold")
-                    conds[iid] = Band(ops[0], _number(c[ops[0]], cw, f"'{ops[0]}'"), 1.0)
-                else:
-                    raise SpecError(f"{cw}: ordinal items cannot be any_of conditions")
-                members_list.append(iid)
-            if len(members_list) < 2:
-                raise SpecError(f"{cw}: any_of needs at least two conditions")
-            comp = Component(
-                comp_id,
-                label,
-                rule,
-                tuple(members_list),
-                points=_points(_req(raw, "points", cw), cw),
-                conditions=conds,
-            )
-        else:  # count
-            raw_members = _list(_req(raw, "items", cw), cw, "items")
-            members = tuple(item_of(i, "boolean") for i in raw_members)
-            bands = _bands(_req(raw, "points", cw), cw)
-            if any(b.op not in ("gte", None) for b in bands):
-                raise SpecError(f"{cw}: count thresholds must use 'gte'")
-            _reachable(bands, range(len(members) + 1), cw)
-            override = raw.get("override")
-            if (override is None) != ("override_points" not in raw):
-                raise SpecError(f"{cw}: 'override' and 'override_points' go together")
-            if override is not None:
-                item_of(override, "boolean")
-            all_items = members + ((override,) if override else ())
-            comp = Component(
-                comp_id,
-                label,
-                rule,
-                all_items,
-                bands=bands,
-                override=override,
-                override_points=_points(raw["override_points"], cw) if override else None,
-            )
-        if "group" in raw:
-            comp = dataclasses.replace(comp, group=_name(raw["group"], cw, "group"))
+    for raw in _list(_req(data, "components", where), where, "components"):
+        comp = _component(raw, where, items)
+        cw = f"{where} component '{comp.id}'"
         for iid in comp.items:
             if iid in owner:
                 raise SpecError(
                     f"{cw}: item '{iid}' already used by component '{owner[iid]}'; "
                     "components must not share items"
                 )
-            owner[iid] = comp_id
-        if comp_id in {c.id for c in components}:
+            owner[iid] = comp.id
+        if comp.id in {c.id for c in components}:
             raise SpecError(f"{cw}: duplicate component id")
         components.append(comp)
 
+    # A threshold outside what the item accepts could never be reached.
     for item in items.values():
-        if item.accepts is None or formula is not None:
+        if item.accepts is None or item.id not in owner:
             continue
         comp = next(c for c in components if item.id in c.items)
         bands = comp.bands if comp.rule == "bands" else (comp.conditions[item.id],)
@@ -591,20 +284,27 @@ def parse(data: Any) -> Calculator:
                     f"is outside 'accepts' {list(item.accepts)}"
                 )
 
-    unused = set() if formula else set(items) - set(owner)
+    unused = set(items) - set(owner)
     if unused:
         raise SpecError(f"{where}: items not used by any component: {sorted(unused)}")
+    return components
 
-    groups = tuple(dict.fromkeys(c.group for c in components if c.group is not None))
+
+# --- categories -----------------------------------------------------------------------------
+
+
+def _categories(data: dict[str, Any], where: str, groups: tuple[str, ...]) -> list[Category]:
+    """The categories, lowest first. None at all: a score-only calculator."""
+    if "categories" not in data:
+        return []
     categories: list[Category] = []
-    raw_categories = _list(data["categories"], where, "categories") if "categories" in data else []
-    for i, raw in enumerate(raw_categories):
+    for i, raw in enumerate(_list(data["categories"], where, "categories")):
         _only(raw, _CATEGORY_KEYS, f"{where} category")
         name = _name(_req(raw, "name", where), f"{where} category", "name")
         kw = f"{where} category '{name}'"
         has_min, has_gt = "min" in raw, "gt" in raw
         on = raw.get("group")  # not "on": YAML reads a bare `on` as true
-        if on is not None and on not in groups:
+        if on is not None and (not isinstance(on, str) or on not in groups):
             raise SpecError(
                 f"{kw}: 'group' must name a component group; this calculator has {list(groups)}"
             )
@@ -631,13 +331,49 @@ def parse(data: Any) -> Calculator:
                 on,
             )
         )
-    if "categories" in data and len(categories) < 2:
+    if len(categories) < 2:
         raise SpecError(
             f"{where}: at least two categories are required (leave 'categories' out for a "
             "score-only calculator)"
         )
     if len({c.name for c in categories}) != len(categories):
         raise SpecError(f"{where}: duplicate category names")
+    return categories
+
+
+# --- the whole spec -------------------------------------------------------------------------
+
+
+def _formula(data: dict[str, Any], where: str, items: dict[str, Item]) -> Formula:
+    if "components" in data:
+        raise SpecError(f"{where}: a calculator has 'components' or a 'formula', not both")
+    try:
+        return parse_formula(
+            data["formula"],
+            where,
+            {i: it.accepts for i, it in items.items() if it.type == "numeric"},
+            {i: it.levels for i, it in items.items() if it.type == "ordinal"},
+            [i for i, it in items.items() if it.type == "boolean"],
+        )
+    except FormulaError as e:
+        raise SpecError(str(e)) from None
+
+
+def parse(data: Any) -> Calculator:
+    """Build a Calculator from the mapping a YAML spec loads into, or raise SpecError."""
+    _only(data, _TOP_KEYS, "spec")
+    cid = _name(_req(data, "id", "spec"), "spec", "id")
+    where = f"calculator '{cid}'"
+
+    items: dict[str, Item] = {}
+    for raw in _list(_req(data, "items", where), where, "items"):
+        item = _item(raw, where, set(items))
+        items[item.id] = item
+
+    formula = _formula(data, where, items) if "formula" in data else None
+    components = [] if formula else _components(data, where, items)
+    groups = tuple(dict.fromkeys(c.group for c in components if c.group is not None))
+    categories = _categories(data, where, groups)
 
     version = data.get("version", 1)
     if isinstance(version, bool) or not isinstance(version, int) or version < 1:
@@ -646,7 +382,7 @@ def parse(data: Any) -> Calculator:
     if not isinstance(higher, bool):
         raise SpecError(f"{where}: higher_is_higher_risk must be true or false")
 
-    calc = Calculator(
+    return Calculator(
         id=cid,
         name=_text(_req(data, "name", where), where, "name"),
         version=version,
@@ -661,10 +397,10 @@ def parse(data: Any) -> Calculator:
         groups=groups,
         formula=formula,
     )
-    return calc
 
 
 def load_file(path: str | Path) -> Calculator:
+    """Load one spec from a YAML file."""
     with open(path, encoding="utf-8") as f:
         return parse(yaml.safe_load(f))
 

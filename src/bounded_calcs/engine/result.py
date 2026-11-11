@@ -23,7 +23,7 @@ from bounded_calcs.engine.inputs import (
 )
 from bounded_calcs.engine.rules import component_points, describe
 from bounded_calcs.engine.state import _bound, _fmt, _uncertain
-from bounded_calcs.spec import Calculator, Item
+from bounded_calcs.model import Calculator, Item
 
 
 def _describe_value(calc: Calculator, item: Item, v: Any) -> str:

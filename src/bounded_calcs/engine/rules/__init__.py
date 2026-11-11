@@ -10,18 +10,25 @@ depends on how it does so:
                                       with its other unknown items held the same
     describe(calc, comp)              the component's entry in the schema
 
-To add a rule: write its module with these functions, register it in `RULES`, and teach
-`spec.py` to read it. `bounds.py`, `result.py` and `inputs.py` do not change.
+A rule module also reads its own part of the YAML:
+
+    KEYS                              the keys the rule takes, besides id, label, rule, group
+    parse(raw, where, id, label, rule, items)   the Component, or a SpecError that says
+                                      where the mistake is
+
+To add a rule: write its module with these, and register it in `RULES`. The loader
+(`spec.py`) and `bounds.py`, `result.py` and `inputs.py` do not change.
 """
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from types import ModuleType
 from typing import Any
 
 from bounded_calcs.engine.rules import any_of, bands, count, levels, present
 from bounded_calcs.engine.state import State
-from bounded_calcs.spec import Calculator, Component
+from bounded_calcs.model import Calculator, Component, Item
 
 RULES: dict[str, ModuleType] = {
     "present": present,
@@ -50,3 +57,18 @@ def flip_pairs(comp: Component, state: State, item_id: str) -> set[tuple[float, 
 def describe(calc: Calculator, comp: Component) -> dict[str, Any]:
     """The rule's part of the component's schema entry."""
     return RULES[comp.rule].describe(calc, comp)
+
+
+COMMON_KEYS = {"id", "label", "rule", "group"}
+
+
+def component_keys(rule: str) -> set[str]:
+    """Every key a component of this rule may have."""
+    return COMMON_KEYS | RULES[rule].KEYS
+
+
+def parse_component(
+    raw: dict[str, Any], where: str, comp_id: str, label: str, rule: str, items: Mapping[str, Item]
+) -> Component:
+    """Read the rule's own keys of one component (the loader has checked id, label and rule)."""
+    return RULES[rule].parse(raw, where, comp_id, label, rule, items)
