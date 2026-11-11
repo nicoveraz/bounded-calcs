@@ -23,6 +23,7 @@ message with `Closes #N`.
 | `perc` | PERC rule | [A] Kline 2004; [A] Kline 2008 | reviewed 2026-09-27 (calc-bounds) | 0 |
 | `curb65` | CURB-65 | [P] Lim 2003 | reviewed 2026-09-27 (calc-bounds) | 0 |
 | `qsofa` | qSOFA | [A] Seymour 2016; [P] Singer 2016 (Sepsis-3) | reviewed 2026-09-27 (calc-bounds) | 0 |
+| `wells_dvt` | Wells criteria for DVT, two-tier | [P] Wells 2003; [S] NICE NG158 table 1 | not yet reviewed | 0 |
 
 "Reviewed (calc-bounds)" means the readings were accepted by the author, an emergency
 physician, as recorded in `docs/CALCULATOR_NOTES.md` of `nicoveraz/calc-bounds`.
@@ -32,8 +33,7 @@ physician, as recorded in `docs/CALCULATOR_NOTES.md` of `nicoveraz/calc-bounds`.
 Answer these before the matching item is started. Each has a recommendation; "go with the
 recommendations" is a valid answer.
 
-- **D1. Wells DVT version ([#3](https://github.com/nicoveraz/bounded-calcs/issues/3)).** Two-tier (likely / unlikely, Wells 2003) or three-tier (low /
-  moderate / high, Wells 1997)? Recommended: two-tier, consistent with `wells_pe`.
+- **D1. Wells DVT version ([#3](https://github.com/nicoveraz/bounded-calcs/issues/3)).** Decided 2026-11-10: two-tier.
 - **D2. Sore throat score ([#4](https://github.com/nicoveraz/bounded-calcs/issues/4)).** Centor (four criteria) or McIsaac (Centor plus age)?
   Recommended: McIsaac as `mcisaac`, because its primary paper is free full text and can be
   verified as [P].
@@ -63,18 +63,7 @@ number and inequality from the source.
   every item whose definition you could not read.
 - Applies to blunt trauma patients: put the gate in `purpose` and `notes`.
 
-### 2. Wells criteria for DVT: `wells_dvt` — needs decision D1 ([#3](https://github.com/nicoveraz/bounded-calcs/issues/3))
-
-- Sources: Wells PS et al. Lancet 1997;350(9094):1795-1798.
-  doi:10.1016/S0140-6736(97)08140-3. PMID 9428249 (three-tier). Wells PS et al. N Engl J Med
-  2003;349(13):1227-1235. doi:10.1056/NEJMoa023153. PMID 14507948 (two-tier).
-- Neither abstract contains the item list. You need the full text, or NICE guideline NG158
-  (its DVT table) as a secondary source [S]; calc-bounds used the same guideline for `wells_pe`.
-- Structure hints: one item subtracts points and is a clinician judgment; the two versions do
-  not have the same item list; several examination findings carry a threshold in their
-  wording (make those boolean, with the threshold in the label).
-
-### 3. Sore throat score: `mcisaac` or `centor` — needs decision D2 ([#4](https://github.com/nicoveraz/bounded-calcs/issues/4))
+### 2. Sore throat score: `mcisaac` or `centor` — needs decision D2 ([#4](https://github.com/nicoveraz/bounded-calcs/issues/4))
 
 - Sources: Centor RM et al. Med Decis Making 1981;1(3):239-246.
   doi:10.1177/0272989X8100100304. PMID 6763125 (the abstract lists the four variables).
@@ -84,14 +73,14 @@ number and inequality from the source.
   item named for the symptom. The modified score adds age bands, one of them negative. The
   score has a lower age limit: gate in `purpose` and `notes`.
 
-### 4. CHA2DS2-VASc: `cha2ds2_vasc` — needs decision D3 ([#5](https://github.com/nicoveraz/bounded-calcs/issues/5))
+### 3. CHA2DS2-VASc: `cha2ds2_vasc` — needs decision D3 ([#5](https://github.com/nicoveraz/bounded-calcs/issues/5))
 
 - Source: Lip GYH et al. Chest 2010;137(2):263-272. doi:10.1378/chest.09-1584.
   PMID 19762550. The abstract does not contain the points table; you need the full text.
 - Structure hints: age has two bands; one item is worth more than the others; sex is an
   ordinal item with two levels (`levels` rule).
 
-### 5. Canadian CT Head Rule: `canadian_ct_head` — needs decision D4 ([#6](https://github.com/nicoveraz/bounded-calcs/issues/6))
+### 4. Canadian CT Head Rule: `canadian_ct_head` — needs decision D4 ([#6](https://github.com/nicoveraz/bounded-calcs/issues/6))
 
 - Source: Stiell IG et al. Lancet 2001;357(9266):1391-1396.
   doi:10.1016/S0140-6736(00)04561-X. PMID 11356436.

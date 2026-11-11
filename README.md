@@ -45,6 +45,7 @@ Python 3.11 or later. The MCP server can also run without installing anything fi
 | `perc` | PERC rule (negative / positive) | Kline et al., J Thromb Haemost 2004. PMID 15304025 | [A] |
 | `curb65` | CURB-65 (low / moderate / high) | Lim et al., Thorax 2003. PMID 12728155 | [P] |
 | `qsofa` | qSOFA (negative / positive) | Seymour et al., JAMA 2016. PMID 26903335; Sepsis-3 criteria | [A], [P] |
+| `wells_dvt` | Wells criteria for DVT, two-tier (unlikely / likely) | Wells et al., N Engl J Med 2003. PMID 14507948; NICE NG158 table 1 | [P], [S] |
 
 Verified: **[P]** primary full text read, **[A]** abstract only, **[S]** secondary source
 (guideline or later paper). All four are ported from calc-bounds, whose readings the author
