@@ -54,6 +54,10 @@ Python 3.11 or later. The MCP server can also run without installing anything fi
 | `spesi` | Simplified PESI (low risk / high risk) | Jiménez et al., Arch Intern Med 2010. PMID 20696966 | [P] |
 | `bisap` | BISAP (score 0 to 5, no categories) | Wu et al., Gut 2008. PMID 18519429 | [P] |
 | `meld_na` | MELD-Na, 2008 formula (score 6 to 40, no categories) | Kim et al., N Engl J Med 2008. PMID 18768945 | [P] |
+| `canadian_ct_head` | Canadian CT Head Rule (no criterion / medium risk / high risk) | Stiell et al., Lancet 2001. PMID 11356436 | [P] |
+| `has_bled` | HAS-BLED (score 0 to 9, no categories) | Pisters et al., Chest 2010. PMID 20299623 | [P] |
+| `cha2ds2_vasc` | CHA2DS2-VASc (low / intermediate / high) | Lip et al., Chest 2010. PMID 19762550 | [P] |
+| `sf_syncope` | San Francisco Syncope Rule (negative / positive) | Quinn et al., Ann Emerg Med 2004. PMID 14747812 | [P] |
 
 Verified: **[P]** primary full text read, **[A]** abstract only, **[S]** secondary source
 (guideline or later paper). All four are ported from calc-bounds, whose readings the author
