@@ -50,6 +50,9 @@ Python 3.11 or later. The MCP server can also run without installing anything fi
 | `wells_dvt` | Wells criteria for DVT, two-tier (unlikely / likely) | Wells et al., N Engl J Med 2003. PMID 14507948; NICE NG158 table 1 | [P], [S] |
 | `mcisaac` | McIsaac sore throat score (no culture or antibiotic / culture, treat if positive / culture, treat on clinical grounds) | McIsaac et al., CMAJ 1998. PMID 9475915 | [P] |
 | `nexus` | NEXUS cervical spine criteria (negative / positive) | Hoffman et al., N Engl J Med 2000. PMID 10891516 | [P] |
+| `canadian_syncope` | Canadian Syncope Risk Score (very low / low / medium / high / very high) | Thiruganasambandamoorthy et al., CMAJ 2016. PMID 27378464 | [P] |
+| `spesi` | Simplified PESI (low risk / high risk) | Jiménez et al., Arch Intern Med 2010. PMID 20696966 | [P] |
+| `bisap` | BISAP (score 0 to 5, no categories) | Wu et al., Gut 2008. PMID 18519429 | [P] |
 
 Verified: **[P]** primary full text read, **[A]** abstract only, **[S]** secondary source
 (guideline or later paper). All four are ported from calc-bounds, whose readings the author

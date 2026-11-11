@@ -28,6 +28,9 @@ message with `Closes #N`.
 | `wells_dvt` | Wells criteria for DVT, two-tier | [P] Wells 2003; [S] NICE NG158 table 1 | not yet reviewed | 0 |
 | `mcisaac` | McIsaac sore throat score | [P] McIsaac 1998 | not yet reviewed | 1 |
 | `nexus` | NEXUS cervical spine criteria | [P] Hoffman 2000 and its correction | not yet reviewed | 2 |
+| `canadian_syncope` | Canadian Syncope Risk Score | [P] Thiruganasambandamoorthy 2016 (figure 2 and legend) | not yet reviewed | 1 |
+| `spesi` | Simplified PESI | [P] Jiménez 2010 (table 1 and methods) | not yet reviewed | 3 |
+| `bisap` | BISAP (score only) | [P] Wu 2008 (methods and scoring sentence) | not yet reviewed | 3 |
 
 "Reviewed (calc-bounds)" means the readings were accepted by the author, an emergency
 physician, as recorded in `docs/CALCULATOR_NOTES.md` of `nicoveraz/calc-bounds`.
