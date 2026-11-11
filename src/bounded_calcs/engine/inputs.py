@@ -226,7 +226,7 @@ def _normalize(
                     raise InputError(hint)
                 v = v["value"]
 
-            def accepted(x: float) -> float:
+            def accepted(x: float, item: Item = item, iid: str = iid) -> float:
                 if item.accepts is not None and not item.accepts[0] <= x <= item.accepts[1]:
                     raise InputError(
                         f"{calc.id}.{iid}: {x:g} is outside the values this calculator accepts "

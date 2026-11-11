@@ -107,8 +107,10 @@ A formula calculator has no `components`. Its spec has the items and
 - Limits the source puts on an input ("values below 1 are set to 1") are written with `max`
   and `min` in the expression.
 - `decimals` only if the source rounds the result; cut-offs are compared after rounding.
-- In the test file the reference returns `(result, category)` and is checked with
-  `assert_formula_matches_reference`. Write threshold tests on each side of every cut-off.
+- In the test file the reference returns `(result, category)` (`(result, None)` when there
+  are no categories) and is checked with `assert_matches_reference(CALC, reference)`, as for
+  every calculator. Write a test for each limit the source puts on an input and for every
+  worked example it gives.
 
 ### Groups
 
