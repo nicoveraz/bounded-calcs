@@ -95,7 +95,7 @@ async def _units_session(args, urea):
 def test_server_refuses_a_number_without_a_unit_when_the_site_has_not_set_one():
     # Urea is reported in mmol/L or as BUN or urea in mg/dL: 19 alone means nothing.
     bad = asyncio.run(_units_session([], 19))
-    assert bad.is_error and "more than one unit" in bad.content[0].text
+    assert bad.is_error and "a number alone is not accepted" in bad.content[0].text
     ok = _payload(asyncio.run(_units_session([], {"value": 19, "unit": "bun_mg/dL"})))
     # BUN 19 mg/dL = 6.78 mmol/L, not over 7: only the age point.
     assert ok["score"] == 1 and ok["category"] == "low"
@@ -104,8 +104,11 @@ def test_server_refuses_a_number_without_a_unit_when_the_site_has_not_set_one():
 def test_site_units_file(tmp_path):
     path = tmp_path / "units.yaml"
     path.write_text("urea: bun_mg/dL\n", encoding="utf-8")
-    r = _payload(asyncio.run(_units_session(["--units", str(path)], 19)))
+    args = ["--units", str(path)]
+    r = _payload(asyncio.run(_units_session(args, {"value": 19, "unit": "not stated"})))
     assert r["score"] == 1 and r["converted"]["urea"]["read_as"] == "bun_mg/dL (site unit)"
+    bad = asyncio.run(_units_session(args, 19))  # a number alone is still refused
+    assert bad.is_error and "a number alone is not accepted" in bad.content[0].text
 
 
 @pytest.mark.parametrize("content", ["urea: mg/dL\n", "confusion: mmol/L\n", "- urea\n"])

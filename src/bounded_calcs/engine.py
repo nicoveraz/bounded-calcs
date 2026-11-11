@@ -85,6 +85,10 @@ def check_site_ranges(calcs: Mapping[str, Calculator], site_ranges: Mapping[str,
         _check_range(f"site normal range for '{iid}'", value)
 
 
+UNIT_NOT_STATED = "not stated"
+"""Sent as the unit of a value whose source gives none: the site's unit is then used."""
+
+
 def check_site_units(calcs: Mapping[str, Calculator], site_units: Mapping[str, Any]) -> None:
     """Validate a site's units against a set of calculators: every id must be a numeric item
     of at least one of them, and the unit one that every calculator with that item takes."""
@@ -187,19 +191,37 @@ def _normalize(
             )
             given = v
             factor, unit_name, read_as = 1.0, None, None
-            if isinstance(v, dict) and "unit" in v:
+            site_unit = site_units.get(iid) if site_units else None
+            unit_given = isinstance(v, dict) and "unit" in v
+            not_stated = (
+                unit_given
+                and isinstance(v["unit"], str)
+                and v["unit"].strip().lower() == UNIT_NOT_STATED
+            )
+            if unit_given and not not_stated:
                 unit_name, factor = _unit_factor(calc, item, v["unit"])
                 v = {k: x for k, x in v.items() if k != "unit"}
             elif not isinstance(v, str):  # a number or bounds with no unit ("normal" needs none)
-                if site_units and iid in site_units:
-                    read_as, factor = _unit_factor(calc, item, site_units[iid])
-                elif require_units and item.units:
+                units = [item.unit, *item.units]
+                if require_units and item.units and not not_stated:
+                    # The caller must say what the source gave, so that a number in another
+                    # unit is never taken for the site's by omission.
                     raise InputError(
-                        f"{calc.id}.{iid}: this item is reported in more than one unit "
-                        f"({[item.unit, *item.units]}) and the site has not said which one it "
-                        'uses. Send {"value": x, "unit": u} with the unit the source gives; if '
-                        "the source gives none, ask for it. It was not scored."
+                        f"{calc.id}.{iid}: this item is reported in more than one unit ({units}), "
+                        'so a number alone is not accepted. Send {"value": x, "unit": u} with '
+                        f'the unit the source gives, or "unit": "{UNIT_NOT_STATED}" if it gives '
+                        "none. It was not scored."
                     )
+                if require_units and item.units and site_unit is None:
+                    raise InputError(
+                        f"{calc.id}.{iid}: the source states no unit and the site has not said "
+                        f"which one it uses ({units}). Ask for the unit; do not guess it. It "
+                        "was not scored."
+                    )
+                if not_stated:
+                    v = {k: x for k, x in v.items() if k != "unit"}
+                if site_unit is not None:
+                    read_as, factor = _unit_factor(calc, item, site_unit)
             if isinstance(v, dict) and "value" in v:
                 if set(v) != {"value"} or isinstance(v["value"], (str, dict)):
                     raise InputError(hint)
@@ -464,10 +486,11 @@ def evaluate(
     have are ignored, so one mapping can serve every calculator.
 
     `units` maps item ids to the unit the site reports that item in (one the item declares):
-    a number sent without a unit is read in it and converted. A unit sent with the value
-    wins. With `require_units`, a number without a unit is refused for an item that declares
-    other units and has no site unit: nobody has said what the number means. Normal ranges
-    and the accepted range are always in the item's own unit.
+    a number sent without a unit, or with the unit "not stated", is read in it and converted.
+    A unit sent with the value wins. With `require_units`, an item that declares other units
+    never takes a number alone: the caller sends the unit the source gives, or "not stated",
+    which is accepted only when the site has a unit for the item. Normal ranges and the
+    accepted range are always in the item's own unit.
     """
     ranges = normal_ranges_in_use(calc, normal_ranges)
     norm = _normalize(calc, inputs, ranges, units, require_units)
@@ -610,22 +633,29 @@ def schema(
                 entry["other_units"] = list(item.units)
             ranged = 'a range {"min": x, "max": y} when the source gives only bounds'
             number = f"number in {item.unit}"
+            site_unit = None
             if units and item.id in units:
-                site_unit, factor = _unit_factor(calc, item, units[item.id])
-                if factor != 1.0:
-                    entry["site_unit"] = site_unit
-                    number = (
-                        f"number in {site_unit} (this site's unit; the tool converts it to "
-                        f"{item.unit})"
-                    )
-            elif require_units and item.units:
+                site_unit, _ = _unit_factor(calc, item, units[item.id])
+                entry["site_unit"] = site_unit
+            if require_units and item.units:
                 entry["unit_required"] = True
+                no_unit = (
+                    f'"unit": "{UNIT_NOT_STATED}" if the source gives none (this site\'s unit, '
+                    f"{site_unit}, is then used)"
+                    if site_unit
+                    else "if the source gives no unit, ask for it"
+                )
                 number = (
                     '{"value": x, "unit": u} with u one of '
-                    f"{[item.unit, *item.units]}, as the source gives it (a number without a "
-                    "unit is refused)"
+                    f"{[item.unit, *item.units]}, as the source gives it; {no_unit}; a number "
+                    "alone is refused"
                 )
                 ranged = ranged.replace('"max": y}', '"max": y, "unit": u}')
+            elif site_unit and site_unit != item.unit:
+                number = (
+                    f"number in {site_unit} (this site's unit; the tool converts it to "
+                    f"{item.unit})"
+                )
             if item.id in ranges:
                 lo, hi, source = ranges[item.id]
                 entry["normal"] = [_fmt(lo), _fmt(hi)]
@@ -703,8 +733,9 @@ def schema(
             "and is unknown otherwise; one the source gives only as bounds ('heart rate over "
             "100') takes a range {\"min\": x, \"max\": y}. Never invent a number. A value in "
             "one of an item's other_units goes as {\"value\": x, \"unit\": u}: the tool "
-            "converts it. An item marked unit_required takes only that form; an item with a "
-            "site_unit takes a plain number in that unit. Items of kind 'judgment' must come from the clinician, not from a "
+            "converts it. An item marked unit_required takes only that form, with the "
+            "unit the source gives, or 'not stated' when it gives none and the item has a "
+            "site_unit. Items of kind 'judgment' must come from the clinician, not from a "
             "note."
         ),
     }
