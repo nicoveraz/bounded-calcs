@@ -56,7 +56,7 @@ Research and reference use only. Not a medical device; not for unsupervised clin
 CALCS = load_builtin()
 SITE_RANGES: dict[str, Any] = {}
 """The site's normal ranges, set at startup by --normal-ranges."""
-server = MCPServer(name="bounded-calcs", instructions=INSTRUCTIONS, version="0.1.1")
+server = MCPServer(name="bounded-calcs", instructions=INSTRUCTIONS, version="0.2.0")
 
 
 def _get(calculator_id: str):
