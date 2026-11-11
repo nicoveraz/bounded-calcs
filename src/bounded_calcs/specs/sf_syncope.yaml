@@ -1,0 +1,81 @@
+id: sf_syncope
+name: San Francisco Syncope Rule
+version: 1
+purpose: >-
+  Short-term serious outcomes in emergency department patients with syncope or near syncope:
+  the rule is positive if any of five predictors is present, negative if none is.
+citation: >-
+  Quinn JV, Stiell IG, McDermott DA, Sellers KL, Kohn MA, Wells GA. Derivation of the San
+  Francisco Syncope Rule to predict patients with short-term serious outcomes. Ann Emerg Med
+  2004;43(2):224-232. doi:10.1016/s0196-0644(03)00823-0. PMID 14747812. Results (the rule and
+  the definition of an abnormal ECG). [P]
+higher_is_higher_risk: true
+notes:
+  - "The rule (Quinn 2004, results): an abnormal ECG (not sinus rhythm or new changes compared
+    with a previous ECG), a complaint of shortness of breath, haematocrit less than 30%, a
+    triage systolic blood pressure less than 90 mmHg, and a history of congestive heart
+    failure. One point each here; the rule is positive with any one."
+  - "Source read from a PDF supplied by the author on 2026-11-11: the abstract and the results
+    paragraph that states the rule. This is the derivation study."
+
+items:
+  - id: abnormal_ecg
+    label: Abnormal ECG (not sinus rhythm, or new changes compared with a previous ECG)
+    type: boolean
+    kind: finding
+    notes:
+      - "TODO(physician-review): when no previous ECG exists, 'new changes' cannot be judged.
+        Reading chosen: the caller decides and sends present, absent or nothing; nothing
+        leaves the rule open."
+  - id: shortness_of_breath
+    label: Complaint of shortness of breath
+    type: boolean
+    kind: finding
+  - id: hematocrit
+    label: Haematocrit
+    type: numeric
+    kind: measurement
+    unit: "%"
+  - id: sbp
+    label: Systolic blood pressure
+    type: numeric
+    kind: measurement
+    unit: mmHg
+    accepts: [50, 250]
+    normal: [101, 139]
+    notes:
+      - Accepted range taken from calc-bounds (docs/CALCULATOR_NOTES.md, parameter modelling choices).
+      - "Normal range 101 to 139 mmHg, used when the source says only that it is
+        normal. Taken from calc-bounds (params.py, absent_means), reviewed by the author on
+        2026-09-27; it crosses no threshold of any calculator that uses this item."
+      - "The rule uses the systolic pressure at triage."
+  - id: history_of_congestive_heart_failure
+    label: History of congestive heart failure
+    type: boolean
+    kind: finding
+
+components:
+  - {id: abnormal_ecg, label: Abnormal ECG, rule: present, item: abnormal_ecg, points: 1}
+  - {id: shortness_of_breath, label: Shortness of breath, rule: present, item: shortness_of_breath, points: 1}
+  - id: hematocrit
+    label: Haematocrit < 30%
+    rule: bands
+    item: hematocrit
+    bands:
+      - {lt: 30, points: 1}
+      - {points: 0}
+  - id: sbp
+    label: Triage systolic blood pressure < 90 mmHg
+    rule: bands
+    item: sbp
+    bands:
+      - {lt: 90, points: 1}
+      - {points: 0}
+  - {id: congestive_heart_failure, label: History of congestive heart failure, rule: present, item: history_of_congestive_heart_failure, points: 1}
+
+categories:
+  - name: negative
+    label: Rule negative (none of the five predictors)
+  - name: positive
+    label: Rule positive (any predictor present)
+    min: 1
