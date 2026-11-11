@@ -137,6 +137,10 @@ Claude Desktop / Claude Code config:
 }
 ```
 
+**Accepted ranges.** A numeric item can declare the values its calculator accepts. A value
+outside that range (an oxygen saturation of 0.97, an age of 16 in an adult score) is an error
+with an explanation, not a score.
+
 **Site normal ranges.** "Normal" for a laboratory value depends on the laboratory. The
 default urea range (2.5 to 8 mmol/L) crosses the CURB-65 threshold of 7 on purpose, so "urea
 normal" is asked about when it matters. A site whose laboratory's upper limit is at most 7 can

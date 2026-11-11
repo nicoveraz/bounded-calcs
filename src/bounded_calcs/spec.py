@@ -15,6 +15,12 @@ only that the value is normal ("vital signs normal"). A site can replace it with
 (see `evaluate`). A range inside one band decides the item's points; a range that crosses a
 threshold only narrows them, and the item stays a question when it matters.
 
+A numeric item may also declare `accepts: [lo, hi]`: the values this calculator takes. A value
+outside it is an input error, never scored and never treated as unknown. It catches unit and
+transcription slips (a saturation of 0.97, a urea that was really BUN in mg/dL) and values the
+score was not made for (a child's age in an adult score). It belongs to the calculator, so two
+calculators may accept different ranges of the same item.
+
 Item kinds (who can supply the value):
   finding      can be read from a note or chart
   measurement  a number from the chart (vitals, labs, age)
@@ -78,7 +84,9 @@ _TOP_KEYS = {
     "id", "name", "version", "purpose", "citation", "references", "higher_is_higher_risk",
     "notes", "items", "components", "categories",
 }  # fmt: skip
-_ITEM_KEYS = {"id", "label", "type", "kind", "levels", "unit", "normal", "question", "notes"}
+_ITEM_KEYS = {
+    "id", "label", "type", "kind", "levels", "unit", "normal", "accepts", "question", "notes",
+}  # fmt: skip
 _COMPONENT_KEYS = {
     "present": {"id", "label", "rule", "item", "points", "group"},
     "absent": {"id", "label", "rule", "item", "points", "group"},
@@ -112,6 +120,7 @@ class Item:
     question: str | None = None
     notes: tuple[str, ...] = ()
     normal: tuple[float, float] | None = None
+    accepts: tuple[float, float] | None = None
 
 
 @dataclass(frozen=True)
@@ -364,6 +373,19 @@ def parse(data: Any) -> Calculator:
             if lo > hi:
                 raise SpecError(f"{iw}: 'normal' must be [lo, hi] with lo <= hi, got {rng!r}")
             normal = (lo, hi)
+        accepts = None
+        if "accepts" in raw:
+            if itype != "numeric":
+                raise SpecError(f"{iw}: 'accepts' is only for numeric items")
+            rng = raw["accepts"]
+            if not isinstance(rng, list) or len(rng) != 2:
+                raise SpecError(f"{iw}: 'accepts' must be a list [lo, hi], got {rng!r}")
+            lo, hi = (_number(x, iw, "'accepts'") for x in rng)
+            if lo >= hi:
+                raise SpecError(f"{iw}: 'accepts' must be [lo, hi] with lo < hi, got {rng!r}")
+            if normal is not None and not (lo <= normal[0] and normal[1] <= hi):
+                raise SpecError(f"{iw}: the normal range must lie inside 'accepts'")
+            accepts = (lo, hi)
         items[iid] = Item(
             id=iid,
             label=_text(_req(raw, "label", iw), iw, "label"),
@@ -374,6 +396,7 @@ def parse(data: Any) -> Calculator:
             question=_text(raw["question"], iw, "question") if "question" in raw else None,
             notes=_texts(raw.get("notes", []), iw, "notes"),
             normal=normal,
+            accepts=accepts,
         )
 
     components: list[Component] = []
@@ -481,6 +504,18 @@ def parse(data: Any) -> Calculator:
         if comp_id in {c.id for c in components}:
             raise SpecError(f"{cw}: duplicate component id")
         components.append(comp)
+
+    for item in items.values():
+        if item.accepts is None:
+            continue
+        comp = next(c for c in components if item.id in c.items)
+        bands = comp.bands if comp.rule == "bands" else (comp.conditions[item.id],)
+        for b in bands:
+            if b.value is not None and not item.accepts[0] <= b.value <= item.accepts[1]:
+                raise SpecError(
+                    f"{where} item '{item.id}': threshold {b.value:g} of component '{comp.id}' "
+                    f"is outside 'accepts' {list(item.accepts)}"
+                )
 
     unused = set(items) - set(owner)
     if unused:

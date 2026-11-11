@@ -100,6 +100,13 @@ MISTAKES = {
     "normal range that is not a pair": lambda d: d["items"][1].update(normal=[5]),
     "normal range reversed": lambda d: d["items"][1].update(normal=[9, 5]),
     "normal range as text": lambda d: d["items"][1].update(normal=["5", "9"]),
+    "accepted range on a boolean item": lambda d: d["items"][0].update(accepts=[0, 1]),
+    "accepted range reversed": lambda d: d["items"][1].update(accepts=[30, 5]),
+    "accepted range that is not a pair": lambda d: d["items"][1].update(accepts=[5]),
+    "normal range outside the accepted range": lambda d: d["items"][1].update(
+        normal=[10, 19], accepts=[12, 40]
+    ),
+    "threshold outside the accepted range": lambda d: d["items"][1].update(accepts=[0, 15]),
     "category on a group no component has": lambda d: d["categories"][1].update(group="g"),
     "group name not snake_case": lambda d: d["components"][0].update(group="High risk"),
     "first category with a group": lambda d: (
@@ -199,3 +206,8 @@ def test_bare_on_is_not_a_key():
     text = yaml.safe_dump(BASE).replace("min: 2", "min: 2\n  on: g")
     with pytest.raises(SpecError, match="unknown key"):
         parse(yaml.safe_load(text))
+
+
+def test_accepted_range_parses():
+    calc = parse(broken(lambda d: d["items"][1].update(accepts=[0, 40], normal=[10, 19])))
+    assert calc.items["b"].accepts == (0, 40)

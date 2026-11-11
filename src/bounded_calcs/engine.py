@@ -60,6 +60,11 @@ def normal_ranges_in_use(
             continue
         if site_ranges and iid in site_ranges:
             lo, hi = _check_range(f"site normal range for '{iid}'", site_ranges[iid])
+            if item.accepts is not None and not (item.accepts[0] <= lo and hi <= item.accepts[1]):
+                raise InputError(
+                    f"site normal range for '{iid}': {lo:g} to {hi:g} is outside what "
+                    f"'{calc.id}' accepts ({item.accepts[0]:g} to {item.accepts[1]:g} {item.unit})"
+                )
             out[iid] = (lo, hi, "site")
         elif item.normal is not None:
             out[iid] = (item.normal[0], item.normal[1], "default")
@@ -140,6 +145,17 @@ def _normalize(
                 + ("" if rng else "; this item has no normal range")
                 + f"; got {v!r}"
             )
+
+            def accepted(x: float) -> float:
+                if item.accepts is not None and not item.accepts[0] <= x <= item.accepts[1]:
+                    raise InputError(
+                        f"{calc.id}.{iid}: {x:g} is outside the values this calculator accepts "
+                        f"({item.accepts[0]:g} to {item.accepts[1]:g} {item.unit}). Check the "
+                        "value and its unit; if it is right, this calculator does not apply. "
+                        "It was not scored."
+                    )
+                return x
+
             if isinstance(v, str) and v.strip().lower() == NORMAL_WORD:
                 if rng is None:
                     raise InputError(hint)
@@ -162,7 +178,7 @@ def _normalize(
                         or abs(x) == INF
                     ):
                         raise InputError(hint)
-                    bounds.append(float(x))
+                    bounds.append(accepted(float(x)) if key in v else float(x))
                 lo, hi = bounds
                 if lo > hi:
                     raise InputError(f"{calc.id}.{iid}: range has min > max: {v!r}")
@@ -177,6 +193,7 @@ def _normalize(
                 raise InputError(hint) from None
             if x != x or abs(x) == INF:
                 raise InputError(hint)
+            accepted(x)
             state[iid] = _bands_touched(calc, iid, x, x)
     return _Normalized(state, known_ranges, normal_assumed)
 
@@ -488,6 +505,8 @@ def schema(
             entry["values"] = [*item.levels, "unknown"]
         else:
             entry["unit"] = item.unit
+            if item.accepts is not None:
+                entry["accepts"] = [_fmt(item.accepts[0]), _fmt(item.accepts[1])]
             ranged = 'a range {"min": x, "max": y} when the source gives only bounds'
             if item.id in ranges:
                 lo, hi, source = ranges[item.id]

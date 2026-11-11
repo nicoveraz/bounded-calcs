@@ -155,6 +155,12 @@ inventing a clinician's judgment is not.
   then "normal" narrows the item without deciding it, and the engine asks for the value when
   it matters. Never add a range for age, weight or other values that are never just
   "normal".
+- **Accepted range.** A numeric item may declare `accepts: [lo, hi]`: a value outside it is
+  an input error and is not scored. Use it to catch unit and transcription slips, and ages
+  the score was not made for. It belongs to this calculator: do not copy it from another spec
+  that uses the same item id unless the same range is right here. Add a range only if a
+  source or calc-bounds (`docs/CALCULATOR_NOTES.md`, parameter modelling choices) gives one,
+  with a note saying where it came from. Every threshold of the item must lie inside it.
 - The applicability gate goes in `purpose` and `notes`. Do not add items for it.
 
 ## Step 5. Write the spec

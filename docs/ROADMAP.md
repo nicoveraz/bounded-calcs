@@ -18,10 +18,10 @@ message with `Closes #N`.
 
 | id | Calculator | Sources | Review | Open TODOs |
 |---|---|---|---|---|
-| `heart` | HEART score | [P] Six 2008; [A] Backus 2010, 2013; [P] Backus 2011, Poldervaart 2013 | reviewed 2026-09-27 (calc-bounds) | 0 |
+| `heart` | HEART score | [P] Six 2008; [A] Backus 2010, 2013; [P] Backus 2011, Poldervaart 2013 | reviewed 2026-09-27 (calc-bounds) | 1 |
 | `wells_pe` | Wells criteria for PE, two-tier | [A] Wells 2000; [A] van Belle 2006; [S] NICE NG158 | reviewed 2026-09-27 (calc-bounds) | 0 |
-| `perc` | PERC rule | [A] Kline 2004; [A] Kline 2008 | reviewed 2026-09-27 (calc-bounds) | 0 |
-| `curb65` | CURB-65 | [P] Lim 2003 | reviewed 2026-09-27 (calc-bounds) | 0 |
+| `perc` | PERC rule | [A] Kline 2004; [A] Kline 2008 | reviewed 2026-09-27 (calc-bounds) | 1 |
+| `curb65` | CURB-65 | [P] Lim 2003 | reviewed 2026-09-27 (calc-bounds) | 1 |
 | `qsofa` | qSOFA | [A] Seymour 2016; [P] Singer 2016 (Sepsis-3) | reviewed 2026-09-27 (calc-bounds) | 0 |
 | `pecarn_head_under2` | PECARN head injury rule, under 2 years | [P] Kuppermann 2009 and 2014 erratum | open readings confirmed 2026-11-10 | 0 |
 | `pecarn_head_2plus` | PECARN head injury rule, 2 years and older | [P] Kuppermann 2009 and 2014 erratum | open readings confirmed 2026-11-10 | 0 |
@@ -93,8 +93,9 @@ number and inequality from the source.
 These change the engine or the input format, so they are not for unattended work.
 
 1. ~~"Normal" for numeric items~~ ([#9](https://github.com/nicoveraz/bounded-calcs/issues/9)): done (PR #18).
-2. **Plausible ranges for numeric items ([#10](https://github.com/nicoveraz/bounded-calcs/issues/10)).** Reject impossible values (age 500,
-   SpO2 0.97) instead of scoring them. calc-bounds has ranges in `calculators/params.py`.
+2. ~~Plausible ranges for numeric items~~ ([#10](https://github.com/nicoveraz/bounded-calcs/issues/10)): done. A numeric item can declare
+   `accepts: [lo, hi]`; a value outside it is an input error. The adult calculators use the
+   ranges of calc-bounds. `gcs` and the McIsaac `age` have none yet (no source for a range).
 3. **Formula calculators ([#11](https://github.com/nicoveraz/bounded-calcs/issues/11))** (Cockcroft-Gault and similar). The score is continuous.
    calc-bounds bounds it exactly by evaluating the corners of the box formed by the inputs'
    allowed ranges (`bounds/__init__.py`), so this depends on item 2.
