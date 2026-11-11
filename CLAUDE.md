@@ -13,7 +13,7 @@ literally. When they do not cover a situation, stop and ask; do not improvise.
 |---|---|
 | Add a calculator | `docs/ADDING_A_CALCULATOR.md`, then follow it step by step |
 | Choose what to build | `docs/ROADMAP.md`: take the first item marked **ready**, one at a time, and read the GitHub issue it links to |
-| Understand the engine | README "How it works"; docstrings of `spec.py`, `engine.py`, `testing.py` |
+| Understand the engine | README "How it works"; docstrings of `spec.py`, `engine/__init__.py`, `engine/rules/__init__.py`, `testing.py` |
 | Prepare a release | `docs/RELEASING.md`, and only when the user asks for a release |
 
 ## Hard rules
@@ -40,7 +40,7 @@ literally. When they do not cover a situation, stop and ask; do not improvise.
    validation in `spec.py`, or change `testing.py` to make something pass. If a check looks
    wrong, stop and ask.
 8. **Engine and format are frozen unless the user approves.** Adding a calculator touches only
-   the files listed in "What a calculator consists of". Do not change `engine.py`, `spec.py`,
+   the files listed in "What a calculator consists of". Do not change `engine/`, `spec.py`,
    `testing.py`, `mcp_server.py`, the YAML format or the names of output fields (they are a
    public API). If a calculator does not fit the format, stop and ask.
 9. **Deterministic core.** No LLM calls, network access or randomness in `src/`.
@@ -82,7 +82,12 @@ Nothing else. The MCP server and the generic tests pick up new specs automatical
 ```
 src/bounded_calcs/
   spec.py         YAML format, strict validation (rejects typos, bad band order, bad YAML text)
-  engine.py       evaluate(): bounds, possible categories, decisive unknowns; schema()
+  engine/         the bounding engine, one job per module
+    inputs.py       what a caller may send (words, numbers, ranges, units) -> the engine's state
+    rules/          one module per scoring rule (present, levels, bands, any_of, count)
+    bounds.py       reachable scores and categories; which unknown items can change them
+    result.py       evaluate() and schema(): the output fields (public API)
+    state.py        the state's type and shared helpers
   testing.py      assert_matches_reference(): spec and engine against an independent reference
   mcp_server.py   MCP tools: list_calculators, get_schema, evaluate
   _mcp_launcher.py  the bounded-calcs-mcp command (explains a missing MCP extra)
