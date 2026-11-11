@@ -59,6 +59,11 @@ def item_values(calc: Calculator, item_id: str, extra: Any = ()) -> list[Any]:
         return [True, False]
     if item.type == "ordinal":
         return list(item.levels)
+    if calc.formula is not None:  # no thresholds: values across the range the item accepts
+        from bounded_calcs.formula import grid
+
+        assert item.accepts is not None
+        return sorted({*grid(item.accepts[0], item.accepts[1], 4), *(float(x) for x in extra)})
     return sorted({*band_probes(calc.numeric_bands(item_id)), *(float(x) for x in extra)})
 
 
@@ -107,7 +112,12 @@ def assert_matches_reference(
     (numeric items). `extra_values` adds numbers to probe for numeric items, e.g.
     `{"age": [44, 45, 64, 65]}`. `normal_ranges` are a site's own normal ranges, passed to the
     engine as in `evaluate`. Raises AssertionError on the first disagreement.
+
+    For a formula calculator this runs `assert_formula_matches_reference` instead, so every
+    calculator's test calls the same function.
     """
+    if calc.formula is not None:  # a formula calculator has its own comparison
+        return assert_formula_matches_reference(calc, reference, trials=trials, seed=seed)
     extra_values = dict(extra_values or {})
     bad = [i for i in extra_values if i not in calc.items or calc.items[i].type != "numeric"]
     if bad:

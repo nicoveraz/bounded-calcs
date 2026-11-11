@@ -31,6 +31,7 @@ message with `Closes #N`.
 | `canadian_syncope` | Canadian Syncope Risk Score | [P] Thiruganasambandamoorthy 2016 (figure 2 and legend) | not yet reviewed | 1 |
 | `spesi` | Simplified PESI | [P] Jiménez 2010 (table 1 and methods) | not yet reviewed | 3 |
 | `bisap` | BISAP (score only) | [P] Wu 2008 (methods and scoring sentence) | not yet reviewed | 3 |
+| `meld_na` | MELD-Na, 2008 formula (formula, score only) | [P] Kim 2008 | not yet reviewed | 6 |
 
 "Reviewed (calc-bounds)" means the readings were accepted by the author, an emergency
 physician, as recorded in `docs/CALCULATOR_NOTES.md` of `nicoveraz/calc-bounds`.

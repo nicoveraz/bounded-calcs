@@ -53,6 +53,7 @@ Python 3.11 or later. The MCP server can also run without installing anything fi
 | `canadian_syncope` | Canadian Syncope Risk Score (very low / low / medium / high / very high) | Thiruganasambandamoorthy et al., CMAJ 2016. PMID 27378464 | [P] |
 | `spesi` | Simplified PESI (low risk / high risk) | Jiménez et al., Arch Intern Med 2010. PMID 20696966 | [P] |
 | `bisap` | BISAP (score 0 to 5, no categories) | Wu et al., Gut 2008. PMID 18519429 | [P] |
+| `meld_na` | MELD-Na, 2008 formula (score 6 to 40, no categories) | Kim et al., N Engl J Med 2008. PMID 18768945 | [P] |
 
 Verified: **[P]** primary full text read, **[A]** abstract only, **[S]** secondary source
 (guideline or later paper). All four are ported from calc-bounds, whose readings the author
@@ -150,8 +151,7 @@ with an explanation, not a score.
 **Score-only calculators.** A scale whose source gives a score and no decision categories
 has no `categories` in its spec. The result is then the score: `settled` means the score is
 exact, `score_range` bounds it otherwise, and each unknown item that can change it is listed
-with the range the score would have for each answer. No built-in calculator is score-only
-yet.
+with the range the score would have for each answer. `bisap` and `meld_na` are score-only.
 
 **Formula calculators.** A spec can have a `formula` instead of point components: an
 expression on the items, such as `(a / b) / c`. A known input is used as it is; an unknown one
@@ -160,8 +160,8 @@ range. The spec declares whether the result rises or falls with each numeric inp
 loader checks it, so the result's lowest and highest values are at the ends of those ranges:
 `score_range` is exact, and every category it touches is listed as possible. For which unknown
 inputs matter, formulas are conservative: an input is called irrelevant only if it cannot move
-the result at all or the category is already settled. No built-in calculator uses a formula
-yet.
+the result at all or the category is already settled. `meld_na` is the first built-in formula
+calculator.
 
 **Units.** Every numeric item has one unit, and a number sent alone is read in it. An item
 can also declare other units with their conversion factor: CURB-65 urea is in mmol/L and
