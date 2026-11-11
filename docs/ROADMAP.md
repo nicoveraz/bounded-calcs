@@ -30,10 +30,10 @@ message with `Closes #N`.
 | `nexus` | NEXUS cervical spine criteria | [P] Hoffman 2000 and its correction | not yet reviewed | 2 |
 | `canadian_syncope` | Canadian Syncope Risk Score | [P] Thiruganasambandamoorthy 2016 (figure 2 and legend) | not yet reviewed | 1 |
 | `spesi` | Simplified PESI | [P] Jiménez 2010 (table 1 and methods) | not yet reviewed | 3 |
-| `bisap` | BISAP (score only) | [P] Wu 2008 (methods and scoring sentence) | not yet reviewed | 3 |
+| `bisap` | BISAP | [P] Wu 2008 (methods and scoring sentence); cut-off [A] Singh 2009 | not yet reviewed | 3 |
 | `meld_na` | MELD-Na, 2008 formula (formula, score only) | [P] Kim 2008 | version chosen 2026-11-11; rest not yet reviewed | 5 |
 | `canadian_ct_head` | Canadian CT Head Rule | [P] Stiell 2001 (panel 1 and methods) | not yet reviewed | 1 |
-| `has_bled` | HAS-BLED (score only) | [P] Pisters 2010 (methods and table 2) | not yet reviewed | 4 |
+| `has_bled` | HAS-BLED | [P] Pisters 2010 (methods and table 2); cut-off [S] ESC 2010 guideline | not yet reviewed | 4 |
 | `cha2ds2_vasc` | CHA2DS2-VASc | [P] Lip 2010 (table 2 and methods) | not yet reviewed | 2 |
 | `sf_syncope` | San Francisco Syncope Rule | [P] Quinn 2004 (abstract and results) | not yet reviewed | 1 |
 | `cincinnati_stroke` | Cincinnati Prehospital Stroke Scale | [P] Kothari 1999 (abstract and figure) | not yet reviewed | 1 |

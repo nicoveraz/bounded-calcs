@@ -3,20 +3,30 @@ name: HAS-BLED bleeding risk score
 version: 1
 purpose: >-
   One-year risk of major bleeding in patients with atrial fibrillation: a score from 0 to 9.
-  The parts of the source that were read define no risk categories.
+  A score of 3 or more is 'high risk' in the 2010 ESC guideline, meaning caution and regular
+  review after starting antithrombotic therapy; it is not by itself a reason to withhold
+  anticoagulation.
 citation: >-
   Pisters R, Lane DA, Nieuwlaat R, de Vos CB, Crijns HJGM, Lip GYH. A novel user-friendly
   score (HAS-BLED) to assess 1-year risk of major bleeding in patients with atrial
   fibrillation: the Euro Heart Survey. Chest 2010;138(5):1093-1100. doi:10.1378/chest.10-0134.
   PMID 20299623. Methods (definitions) and table 2 (points). [P]
+references:
+  - "Camm AJ, Kirchhof P, Lip GYH, et al. Guidelines for the management of atrial fibrillation:
+    the Task Force for the Management of Atrial Fibrillation of the European Society of
+    Cardiology (ESC). Eur Heart J 2010;31(19):2369. doi:10.1093/eurheartj/ehq278. PMID
+    20802247. Source of the cut-off: 'a score of >=3 indicates high risk, and some caution and
+    regular review of the patient is needed following the initiation of antithrombotic
+    therapy'; it gives a score of 0 to 2 as its example of low risk of bleeding. [S]"
 higher_is_higher_risk: true
 notes:
   - "Points (Pisters 2010, table 2 and methods): hypertension 1; abnormal renal and liver
     function 1 each; stroke 1; bleeding 1; labile INRs 1; elderly 1; drugs or alcohol 1 each.
     Maximum 9."
-  - "Score only. The text of the source was searched for a stated cut-off on 2026-11-11 and
-    none was found: the paper reports bleeding rates by score. A cut-off used elsewhere (for
-    example 3 or more) must come from a source before it is added."
+  - "The primary paper defines no cut-off (it reports bleeding rates by score). The cut-off
+    at 3 comes from the 2010 ESC guideline (see references), read on the publisher's site on
+    2026-11-11, by the author's rule that a cut-off missing from the primary paper is taken
+    from a guideline or a validation paper."
   - "Source read from a PDF supplied by the author on 2026-11-11: the methods paragraphs that
     define the score and its terms, and table 2."
 
@@ -98,3 +108,12 @@ components:
       - {points: 0}
   - {id: drugs, label: Drugs, rule: present, item: antiplatelet_or_nsaid, points: 1}
   - {id: alcohol, label: Alcohol, rule: present, item: alcohol_excess, points: 1}
+
+categories:
+  - name: not_high_risk
+    label: Score 0 to 2 (the guideline's example of low risk of bleeding)
+  - name: high_risk
+    label: >-
+      High risk (score 3 or more): caution and regular review of the patient after starting
+      antithrombotic therapy (ESC 2010)
+    min: 3

@@ -3,9 +3,8 @@
 Source: Wu BU et al. Gut 2008;57(12):1698-1703, PMID 18519429, methods and results [P]. The
 reference is written from the scoring sentence (one point each during the first 24 h: BUN
 over 25 mg/dL, impaired mental status, SIRS, age over 60 years, pleural effusion) and the
-methods definition of SIRS (2 or more of four criteria). The source defines no categories in
-the parts read, so the reference returns the score alone. It is deliberately not derived from
-the YAML spec.
+methods definition of SIRS (2 or more of four criteria); and from Singh 2009 (abstract) for
+the cut-off at a score of 3 or more [A]. It is deliberately not derived from the YAML spec.
 """
 
 import pytest
@@ -32,7 +31,7 @@ def reference(v):
         (v["bun"] > 25) + v["impaired_mental_status"] + sirs + (v["age"] > 60)
         + v["pleural_effusion"]
     )  # fmt: skip
-    return score, None
+    return score, "three_or_more" if score >= 3 else "below_3"
 
 
 def test_matches_reference():
@@ -53,13 +52,21 @@ def test_matches_reference():
 )
 def test_thresholds(change, score):
     r = evaluate(CALC, ZERO | change)
-    assert r["settled"] and r["score"] == score and r["category"] is None
+    assert r["settled"] and r["score"] == score and r["category"] == "below_3"
 
 
 def test_all_five():
     worst = {"bun": 40, "impaired_mental_status": "present", "age": 75,
              "pleural_effusion": "present"} | {k: "present" for k in SIRS}  # fmt: skip
-    assert evaluate(CALC, worst)["score"] == 5
+    r = evaluate(CALC, worst)
+    assert (r["score"], r["category"]) == (5, "three_or_more")
+
+
+def test_cut_off_at_3():  # "a BISAP score >=3 was associated with ..." (Singh 2009)
+    two = {"bun": 40, "age": 75}
+    assert evaluate(CALC, ZERO | two)["category"] == "below_3"
+    three = evaluate(CALC, ZERO | two | {"pleural_effusion": "present"})
+    assert (three["score"], three["category"]) == (3, "three_or_more")
 
 
 def test_urea_in_other_units_is_converted_to_urea_nitrogen():
@@ -83,8 +90,8 @@ def test_sparse_note_gives_a_range():
         "sirs_pulse_over_90": "present",
     }
     r = evaluate(CALC, note)
-    assert r["score_only"] is True
     assert not r["settled"] and r["score"] is None and r["score_range"] == [2, 3]
+    assert r["possible_categories"] == ["below_3", "three_or_more"]
     assert {d["item"] for d in r["decisive_unknowns"]} == {
         "sirs_respiratory",
         "sirs_temperature",
