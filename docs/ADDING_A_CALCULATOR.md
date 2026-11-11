@@ -162,6 +162,8 @@ inventing a clinician's judgment is not.
   "normal".
 - **Other units.** If the item is commonly reported in another unit, declare it with its
   factor to the item's unit: `units: {bun_mg/dL: {divide_by: 2.8014}}` (or `multiply_by`).
+  Add a `label` saying what the unit means when its name is not what a note would write
+  (`label: "urea nitrogen (BUN) in mg/dL"`); the schema shows it to the model.
   The engine then converts a value sent as `{"value": x, "unit": "bun_mg/dL"}` and refuses
   any unit that is not declared. Name the unit so that it cannot be misread: when two
   analytes share a unit (urea and urea nitrogen in mg/dL), put the analyte in the name and do

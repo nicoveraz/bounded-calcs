@@ -30,8 +30,8 @@ items:
     kind: measurement
     unit: mmol/L
     units:
-      bun_mg/dL: {divide_by: 2.8014}
-      urea_mg/dL: {divide_by: 6.006}
+      bun_mg/dL: {divide_by: 2.8014, label: "urea nitrogen (BUN) in mg/dL"}
+      urea_mg/dL: {divide_by: 6.006, label: "urea (not urea nitrogen) in mg/dL"}
     accepts: [1, 60]
     normal: [2.5, 8]
     notes:

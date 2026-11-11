@@ -772,3 +772,11 @@ def test_schema_shows_the_site_unit_or_that_a_unit_is_required():
     assert "ask for it" in strict["values"] and "site_unit" not in strict
     sbp = next(i for i in schema(CURB, require_units=True)["items"] if i["id"] == "sbp")
     assert "unit_required" not in sbp
+
+
+def test_unit_labels_are_in_the_schema():
+    urea = next(i for i in schema(CURB)["items"] if i["id"] == "urea")
+    assert urea["unit_labels"] == {
+        "bun_mg/dL": "urea nitrogen (BUN) in mg/dL",
+        "urea_mg/dL": "urea (not urea nitrogen) in mg/dL",
+    }

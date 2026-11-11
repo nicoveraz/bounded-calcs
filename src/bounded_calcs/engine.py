@@ -631,6 +631,8 @@ def schema(
                 entry["accepts"] = [_fmt(item.accepts[0]), _fmt(item.accepts[1])]
             if item.units:
                 entry["other_units"] = list(item.units)
+                if item.unit_labels:
+                    entry["unit_labels"] = dict(item.unit_labels)
             ranged = 'a range {"min": x, "max": y} when the source gives only bounds'
             number = f"number in {item.unit}"
             site_unit = None
@@ -640,8 +642,8 @@ def schema(
             if require_units and item.units:
                 entry["unit_required"] = True
                 no_unit = (
-                    f'"unit": "{UNIT_NOT_STATED}" if the source gives none (this site\'s unit, '
-                    f"{site_unit}, is then used)"
+                    f'"unit": "{UNIT_NOT_STATED}" only if the source gives the number with no '
+                    f"unit at all (this site's unit, {site_unit}, is then used)"
                     if site_unit
                     else "if the source gives no unit, ask for it"
                 )

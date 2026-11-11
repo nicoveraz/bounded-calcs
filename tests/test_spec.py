@@ -247,3 +247,14 @@ def test_categories_may_be_left_out_for_a_score_only_calculator():
         calc.category(1)
     with pytest.raises(SpecError, match="non-empty list"):  # left out, not left empty
         parse(broken(lambda d: d.update(categories=[])))
+
+
+def test_a_unit_may_carry_a_label():
+    calc = parse(
+        broken(
+            lambda d: d["items"][1].update(units={"x": {"multiply_by": 4, "label": "x per litre"}})
+        )
+    )
+    assert calc.items["b"].units == {"x": 4} and calc.items["b"].unit_labels == {"x": "x per litre"}
+    with pytest.raises(SpecError):  # a label does not replace the factor
+        parse(broken(lambda d: d["items"][1].update(units={"x": {"label": "x per litre"}})))

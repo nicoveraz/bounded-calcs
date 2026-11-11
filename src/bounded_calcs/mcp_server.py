@@ -49,9 +49,10 @@ Workflow:
    that item. If the note gives another unit that the schema lists for the item
    (other_units), send {"value": x, "unit": "the note's unit"} and the tool converts it.
    An item the schema marks unit_required always goes that way, with the unit exactly as
-   the note gives it. If the note gives no unit for such an item, send "unit": "not stated"
-   when the schema shows a site_unit for it, and otherwise ask for the unit. Never guess a
-   unit, and convert one yourself only when the schema does not list it.
+   the note gives it (unit_labels says what each listed unit means). Only if the note gives
+   the number with no unit at all, send "unit": "not stated" when the schema shows a
+   site_unit for the item, and otherwise ask for the unit. Never guess a unit, and convert
+   one yourself only when the schema does not list it.
 3. If the result is settled, report its category (for a score-only calculator, one whose
    schema has no categories, its score). If not, ask the clinician about the
    decisive unknowns (in the order given), add the answers, and call evaluate again.
