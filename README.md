@@ -99,6 +99,9 @@ that it depends on two things the note doesn't say, one of which only the clinic
   lists it). A range on one side of every threshold settles the item; one that crosses a
   threshold leaves it as a question when it matters. The result names any range assumed for
   "normal" under `normal_assumed`, with its source
+- a numeric item that lists other units takes `{"value": x, "unit": u}`, and the engine
+  converts it; a value outside the range the calculator accepts is an error, not a score (see
+  Units, Site units and Accepted ranges below)
 - anything omitted, `null`, or `"unknown"` is unknown, **never** normal
 - a numeric item without a normal range (such as age) that the source only calls "normal" is
   also unknown; never invent a number
@@ -194,6 +197,9 @@ uvx --from "bounded-calcs[mcp]" bounded-calcs-mcp --normal-ranges ranges.yaml
 
 In Python: `evaluate(calc, findings, normal_ranges={"urea": [2.5, 7.0]})`.
 
+The units a site's laboratory reports are set the same way, with `--units units.yaml`
+(`urea: bun_mg/dL`); see Site units above.
+
 From a clone of this repository, use `"command": "uv"` with
 `"args": ["--directory", "/path/to/bounded-calcs", "run", "bounded-calcs-mcp"]`.
 
@@ -204,7 +210,8 @@ decisive unknowns, and never fill judgment items itself.
 ## Adding a calculator
 
 Each calculator is one YAML file in `src/bounded_calcs/specs/`: items (type, kind, levels or
-unit, a question to ask), components (how items become points), and categories. Component
+unit, a question to ask), components (how items become points) or a formula, and categories
+(left out for a score-only calculator). Component
 rules: `present`, `absent`, `levels`, `bands` (numeric thresholds), `count` (number of present
 items, with an optional override item), and `any_of` (points if any of several conditions is
 met, such as CURB-65's "SBP < 90 or DBP <= 60"). Points may be negative. Every item belongs to
@@ -242,6 +249,14 @@ jointly relevant, so there is always something to ask. Decisive
 items are ordered by how often an answer settles the decision, then by how much it narrows on
 average, with data items before judgments when otherwise equal.
 
+For a formula calculator the result range comes from the ends of the input ranges, which is
+exact because the spec declares, and the loader checks, the direction of the result in each
+input.
+
+The engine is a small package with one module per job (`engine/inputs.py`, `engine/rules/`
+with one module per scoring rule, `engine/bounds.py`, `engine/formula_bounds.py`,
+`engine/result.py`), so a new rule is a new module and not an edit to the others.
+
 ## Development
 
 ```bash
@@ -254,8 +269,8 @@ Releases are published to PyPI by a GitHub Actions workflow when a version tag i
 
 Each calculator has its own test file with an independent reference function, threshold
 cases taken from the source, and sparse-note examples. Other tests cover the spec loader's
-validation, input handling, every rule type, an end-to-end MCP session, and that the
-reference check itself fails on a wrong spec.
+validation, input handling, units, every rule type, formula calculators, an end-to-end MCP
+session, and that the reference check itself fails on a wrong spec.
 
 ## License
 
