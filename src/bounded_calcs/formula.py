@@ -130,7 +130,9 @@ class Formula:
         try:
             out = _eval(self.tree, env)
         except (ZeroDivisionError, ValueError, OverflowError) as e:
-            raise FormulaError(f"cannot evaluate '{self.expression}' for {dict(values)}: {e}")
+            raise FormulaError(
+                f"cannot evaluate '{self.expression}' for {dict(values)}: {e}"
+            ) from None
         if isinstance(out, complex) or out != out or abs(out) == math.inf:
             raise FormulaError(f"'{self.expression}' has no finite value for {dict(values)}")
         return out

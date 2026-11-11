@@ -70,8 +70,12 @@ Find each line of your table in this list. If a line matches nothing, stop and a
 | The source gives a score and no decision categories (a severity scale) | leave `categories` out: a score-only calculator | `tests/test_engine.py`, toy_scale |
 | The result is a formula on continuous values | `formula` instead of `components`: see "Formulas" below | `tests/test_formula.py`, RATIO |
 
-Never invent categories for a score-only source, and never take them from a website or a
-later paper unless the roadmap entry names that paper. In its test file the reference returns
+Never invent categories. If the primary paper defines no cut-off but clinicians use one,
+take it from a guideline or a validation paper that you opened (decided by the author on
+2026-11-11): cite it under `references` with `[S]` or `[A]` and the sentence that states the
+cut-off, and write the category label so that it says what that source says the cut-off
+means. Never take a cut-off from a website or from memory. If no such source can be opened,
+the calculator stays score-only. In its test file the reference returns
 `(score, None)`, and the sparse-note test asserts the score range instead of the categories.
 
 It does **not** fit, and you must stop, if:
@@ -103,8 +107,10 @@ A formula calculator has no `components`. Its spec has the items and
 - Limits the source puts on an input ("values below 1 are set to 1") are written with `max`
   and `min` in the expression.
 - `decimals` only if the source rounds the result; cut-offs are compared after rounding.
-- In the test file the reference returns `(result, category)` and is checked with
-  `assert_formula_matches_reference`. Write threshold tests on each side of every cut-off.
+- In the test file the reference returns `(result, category)` (`(result, None)` when there
+  are no categories) and is checked with `assert_matches_reference(CALC, reference)`, as for
+  every calculator. Write a test for each limit the source puts on an input and for every
+  worked example it gives.
 
 ### Groups
 

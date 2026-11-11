@@ -78,15 +78,26 @@ def _get(calculator_id: str):
 
 
 @server.tool()
-def list_calculators() -> list[dict[str, str]]:
-    """List the available calculators (id, name, purpose)."""
-    return [{"id": c.id, "name": c.name, "purpose": c.purpose} for c in CALCS.values()]
+def list_calculators() -> list[dict[str, Any]]:
+    """List the available calculators: id, name, purpose, and what each returns (its decision
+    categories, lowest risk first, or "score only" when it has none)."""
+    return [
+        {
+            "id": c.id,
+            "name": c.name,
+            "purpose": c.purpose,
+            "returns": [k.name for k in c.categories] or "score only",
+        }
+        for c in CALCS.values()
+    ]
 
 
 @server.tool()
 def get_schema(calculator_id: str) -> dict[str, Any]:
-    """Describe a calculator: its items and allowed values, how points are assigned, the
-    decision categories, the source citation, and open review notes."""
+    """Describe a calculator: its items and the values each takes (with units and accepted
+    ranges), how points are assigned or the formula used, the decision categories (none for a
+    score-only calculator), the source citation, and open review notes. Read it before
+    calling evaluate: item ids and allowed values come from here."""
     return _schema(
         _get(calculator_id), normal_ranges=SITE_RANGES, units=SITE_UNITS, require_units=True
     )
@@ -99,12 +110,15 @@ def evaluate(calculator_id: str, findings: dict[str, Any] | None = None) -> dict
     `findings` maps item ids to values: "present" / "absent" for boolean items, one of the
     listed levels for ordinal items, a number for numeric items ("normal" for those with a
     normal range, when the note gives no number; {"min": x, "max": y} when it gives only
-    bounds). Omit items that are not documented (or send "unknown"); they are treated as
-    unknown, never as normal.
+    bounds; {"value": x, "unit": u} when the schema lists units for the item). Omit items
+    that are not documented (or send "unknown"); they are treated as unknown, never as
+    normal. A value outside the range an item accepts, or in a unit it does not list, is an
+    error that says what to correct: nothing is scored.
 
-    Returns whether the decision category is settled, every category still possible, the
-    worst case, the score range, and the decisive unknowns: the only items worth asking the
-    clinician about, each with what the category would be for each possible answer.
+    Returns whether the result is settled, every category still possible, the worst case,
+    the score range, and the decisive unknowns: the only items worth asking the clinician
+    about, each with what the result would be for each possible answer. For a score-only
+    calculator the result is the score itself and there are no categories.
     """
     try:
         return _evaluate(

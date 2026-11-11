@@ -3,13 +3,20 @@ name: Bedside Index for Severity in Acute Pancreatitis (BISAP)
 version: 1
 purpose: >-
   Early risk of in-hospital mortality in acute pancreatitis, from five findings during the
-  first 24 hours of hospitalisation. The result is a score from 0 to 5; the source reports
-  mortality by score and the parts read define no decision categories.
+  first 24 hours of hospitalisation. The result is a score from 0 to 5. A score of 3 or more
+  was associated with organ failure, persistent organ failure and pancreatic necrosis in a
+  prospective validation study.
 citation: >-
   Wu BU, Johannes RS, Sun X, Tabak Y, Conwell DL, Banks PA. The early prediction of mortality
   in acute pancreatitis: a large population-based study. Gut 2008;57(12):1698-1703.
   doi:10.1136/gut.2008.152702. PMID 18519429. Methods (candidate risk factors, definitions)
   and results (the scoring sentence). [P]
+references:
+  - "Singh et al. A prospective evaluation of the bedside index for severity in acute
+    pancreatitis score in assessing mortality and intermediate markers of severity in acute
+    pancreatitis. Am J Gastroenterol 2009;104(4):966. PMID 19293787. Source of the cut-off:
+    'a BISAP score >=3 was associated with an increased risk of developing organ failure,
+    persistent organ failure and pancreatic necrosis'. [A]"
 higher_is_higher_risk: true
 notes:
   - "One point for each of the following during the first 24 h (Wu 2008): blood urea nitrogen
@@ -19,10 +26,11 @@ notes:
     beats/min; respirations over 20/min or PaCO2 under 32 mmHg; temperature over 38 or under
     36 degrees C; white cell count over 12 000 or under 4000 cells/mm3 or over 10% immature
     neutrophils (bands). It is worth one point however many criteria are met."
-  - "Score only. The source was searched for a stated cut-off on 2026-11-11: it reports that
-    most patients had scores under 2 and were at very low risk of death (under 1%), and that
-    mortality rose sharply with scores of 3 or more (5 to 20%), but it defines no categories,
-    so none are defined here."
+  - "The primary paper names no categories: it reports that most patients had scores under 2
+    and were at very low risk of death (under 1%), and that mortality rose sharply with scores
+    of 3 or more (5 to 20%). The cut-off at 3 comes from a prospective validation study (see
+    references), read as an abstract on 2026-11-11, by the author's rule that a cut-off
+    missing from the primary paper is taken from a guideline or a validation paper."
   - "Source read on the publisher's site (gut.bmj.com) on 2026-11-11: the methods list of
     risk factors with their definitions and the sentences that state the score. The whole
     paper was not read."
@@ -111,3 +119,12 @@ components:
       - {gt: 60, points: 1}
       - {points: 0}
   - {id: pleural_effusion, label: Pleural effusion, rule: present, item: pleural_effusion, points: 1}
+
+categories:
+  - name: below_3
+    label: Score 0 to 2
+  - name: three_or_more
+    label: >-
+      Score 3 or more: associated with increased risk of organ failure, persistent organ
+      failure and pancreatic necrosis (Singh 2009)
+    min: 3

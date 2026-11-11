@@ -131,7 +131,10 @@ def formula_result(
         else:
             shown = [d[0], d[1]]
             interior = grid(d[0], d[1], 5)
-        fixed = lambda v: {**doms, iid: [v] if isinstance(d, list) else (v, v)}  # noqa: E731
+        def fixed(v: Any, iid: str = iid, d: Any = d) -> Domains:
+            """The domains with this one item fixed at v."""
+            return {**doms, iid: [v] if isinstance(d, list) else (v, v)}
+
         moves = len({left(fixed(v))[1] for v in interior}) > 1
         if settled or not moves:
             irrelevant.append(iid)

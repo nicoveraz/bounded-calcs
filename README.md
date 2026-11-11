@@ -22,9 +22,11 @@ from rule-based decision logic for clinical risk scores*
 [calc-bounds](https://github.com/nicoveraz/calc-bounds)): the LLM only reads the note;
 deterministic code decides whether the missing items matter.
 
-> **Research and reference use only.** Not a medical device. The built-in definitions were
-> reviewed by one emergency physician (the author); several sources were read only as
-> abstracts or through secondary sources, as each spec states.
+> **Research and reference use only.** Not a medical device. The earlier built-in definitions
+> were reviewed by one emergency physician (the author); the calculators added since version
+> 0.2.0 have not been reviewed yet (`docs/ROADMAP.md` lists the state of each). Some sources
+> were read only in part, as abstracts or through secondary sources: each spec says exactly
+> what was read, and marks every open question with `TODO(physician-review)`.
 
 ## Install
 
@@ -52,10 +54,10 @@ Python 3.11 or later. The MCP server can also run without installing anything fi
 | `nexus` | NEXUS cervical spine criteria (negative / positive) | Hoffman et al., N Engl J Med 2000. PMID 10891516 | [P] |
 | `canadian_syncope` | Canadian Syncope Risk Score (very low / low / medium / high / very high) | Thiruganasambandamoorthy et al., CMAJ 2016. PMID 27378464 | [P] |
 | `spesi` | Simplified PESI (low risk / high risk) | Jiménez et al., Arch Intern Med 2010. PMID 20696966 | [P] |
-| `bisap` | BISAP (score 0 to 5, no categories) | Wu et al., Gut 2008. PMID 18519429 | [P] |
+| `bisap` | BISAP (below 3 / 3 or more) | Wu et al., Gut 2008. PMID 18519429; cut-off from Singh et al. 2009 | [P], [A] |
 | `meld_na` | MELD-Na, 2008 formula (score 6 to 40, no categories) | Kim et al., N Engl J Med 2008. PMID 18768945 | [P] |
 | `canadian_ct_head` | Canadian CT Head Rule (no criterion / medium risk / high risk) | Stiell et al., Lancet 2001. PMID 11356436 | [P] |
-| `has_bled` | HAS-BLED (score 0 to 9, no categories) | Pisters et al., Chest 2010. PMID 20299623 | [P] |
+| `has_bled` | HAS-BLED (not high risk / high risk) | Pisters et al., Chest 2010. PMID 20299623; cut-off from the 2010 ESC guideline | [P], [S] |
 | `cha2ds2_vasc` | CHA2DS2-VASc (low / intermediate / high) | Lip et al., Chest 2010. PMID 19762550 | [P] |
 | `sf_syncope` | San Francisco Syncope Rule (negative / positive) | Quinn et al., Ann Emerg Med 2004. PMID 14747812 | [P] |
 | `cincinnati_stroke` | Cincinnati Prehospital Stroke Scale (all normal / any abnormal) | Kothari et al., Ann Emerg Med 1999. PMID 10092713 | [P] |
@@ -156,7 +158,7 @@ with an explanation, not a score.
 **Score-only calculators.** A scale whose source gives a score and no decision categories
 has no `categories` in its spec. The result is then the score: `settled` means the score is
 exact, `score_range` bounds it otherwise, and each unknown item that can change it is listed
-with the range the score would have for each answer. `bisap` and `meld_na` are score-only.
+with the range the score would have for each answer. `meld_na` is score-only.
 
 **Formula calculators.** A spec can have a `formula` instead of point components: an
 expression on the items, such as `(a / b) / c`. A known input is used as it is; an unknown one

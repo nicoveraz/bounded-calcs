@@ -10,11 +10,12 @@ Modules, each with one job:
     inputs.py   what a caller may send (words, numbers, ranges, units) -> the engine's state
     rules/      one module per scoring rule: the points a component can still give
     bounds.py   reachable scores and categories; which unknown items can change them
+    formula_bounds.py  the same for formula calculators: the result range from the input ranges
     result.py   evaluate() and schema(): the output a caller sees
     state.py    the state's type and small shared helpers
 
-To add a scoring rule, add a module under `rules/` (see its docstring); the other modules do
-not change. Everything a caller used to import from `bounded_calcs.engine` is still here.
+To add a scoring rule, add a module under `rules/` (see its docstring) and its parsing in
+`spec.py`; the other modules do not change. Everything a caller used to import from `bounded_calcs.engine` is still here.
 """
 
 from bounded_calcs.engine.inputs import (

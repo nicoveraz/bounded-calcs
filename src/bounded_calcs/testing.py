@@ -451,7 +451,7 @@ def assert_formula_matches_reference(
         for iid in result["irrelevant_unknowns"]:
             pos = unknown.index(iid)
             by_rest: dict[tuple[Any, ...], set[Any]] = {}
-            for c, (s, cat) in zip(combos, outs):
+            for c, (s, cat) in zip(combos, outs, strict=True):
                 by_rest.setdefault(c[:pos] + c[pos + 1 :], set()).add(cat if names else s)
             if any(len(v) > 1 for v in by_rest.values()):
                 wrong.append(f"'{iid}' is called irrelevant but changes the reference's outcome")
