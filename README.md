@@ -22,9 +22,11 @@ from rule-based decision logic for clinical risk scores*
 [calc-bounds](https://github.com/nicoveraz/calc-bounds)): the LLM only reads the note;
 deterministic code decides whether the missing items matter.
 
-> **Research and reference use only.** Not a medical device. The built-in definitions were
-> reviewed by one emergency physician (the author); several sources were read only as
-> abstracts or through secondary sources, as each spec states.
+> **Research and reference use only.** Not a medical device. The earlier built-in definitions
+> were reviewed by one emergency physician (the author); the calculators added since version
+> 0.2.0 have not been reviewed yet (`docs/ROADMAP.md` lists the state of each). Some sources
+> were read only in part, as abstracts or through secondary sources: each spec says exactly
+> what was read, and marks every open question with `TODO(physician-review)`.
 
 ## Install
 
