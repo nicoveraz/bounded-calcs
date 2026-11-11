@@ -47,10 +47,12 @@ Workflow:
    100", "SBP in the 90s"), send {"min": x, "max": y}, leaving out the bound it does not
    give. Never invent a number. Send a plain number only in the unit the schema states for
    that item. If the note gives another unit that the schema lists for the item
-   (other_units), or the schema marks the item unit_required, send
-   {"value": x, "unit": "the note's unit"} and the tool converts it. If an item is
-   unit_required and the note gives no unit, ask for the unit; never guess it. Convert a
-   unit yourself only when the schema does not list it.
+   (other_units), send {"value": x, "unit": "the note's unit"} and the tool converts it.
+   An item the schema marks unit_required always goes that way, with the unit exactly as
+   the note gives it (unit_labels says what each listed unit means). Only if the note gives
+   the number with no unit at all, send "unit": "not stated" when the schema shows a
+   site_unit for the item, and otherwise ask for the unit. Never guess a unit, and convert
+   one yourself only when the schema does not list it.
 3. If the result is settled, report its category (for a score-only calculator, one whose
    schema has no categories, its score). If not, ask the clinician about the
    decisive unknowns (in the order given), add the answers, and call evaluate again.

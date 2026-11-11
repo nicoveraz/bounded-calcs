@@ -132,6 +132,7 @@ class Item:
     normal: tuple[float, float] | None = None
     accepts: tuple[float, float] | None = None
     units: dict[str, float] = field(default_factory=dict)  # other unit -> factor to `unit`
+    unit_labels: dict[str, str] = field(default_factory=dict)  # other unit -> how notes write it
 
 
 @dataclass(frozen=True)
@@ -404,6 +405,7 @@ def parse(data: Any) -> Calculator:
                 raise SpecError(f"{iw}: the normal range must lie inside 'accepts'")
             accepts = (lo, hi)
         units: dict[str, float] = {}
+        unit_labels: dict[str, str] = {}
         if "units" in raw:
             if itype != "numeric":
                 raise SpecError(f"{iw}: 'units' is only for numeric items")
@@ -417,7 +419,12 @@ def parse(data: Any) -> Calculator:
                     u.lower() for u in units
                 }:
                     raise SpecError(f"{uw}: listed twice, or the same as the item's own unit")
-                if not isinstance(conv, dict) or len(conv) != 1:
+                if not isinstance(conv, dict):
+                    raise SpecError(f"{uw}: needs exactly one of 'multiply_by' or 'divide_by'")
+                conv = dict(conv)
+                if "label" in conv:  # what the unit means and how a note writes it
+                    unit_labels[uname] = _text(conv.pop("label"), uw, "label")
+                if len(conv) != 1:
                     raise SpecError(f"{uw}: needs exactly one of 'multiply_by' or 'divide_by'")
                 ((how, amount),) = conv.items()
                 if how not in ("multiply_by", "divide_by"):
@@ -438,6 +445,7 @@ def parse(data: Any) -> Calculator:
             normal=normal,
             accepts=accepts,
             units=units,
+            unit_labels=unit_labels,
         )
 
     components: list[Component] = []

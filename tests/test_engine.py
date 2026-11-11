@@ -736,10 +736,23 @@ def test_require_units_refuses_a_number_nobody_gave_a_unit_for():
         evaluate(CURB, {"urea": 20}, require_units=True)
     with pytest.raises(InputError, match="reported in more than one unit"):
         evaluate(CURB, {"urea": {"min": 20}}, require_units=True)
-    # Said by the value, or by the site (also when the site uses the item's own unit).
+    # A number alone is refused even when the site has a unit: the caller must say what the
+    # source gave, so a value in another unit is never taken for the site's by omission.
+    with pytest.raises(InputError, match="a number alone is not accepted"):
+        evaluate(CURB, {"urea": 20}, require_units=True, units=_BUN_SITE)
     evaluate(CURB, {"urea": {"value": 20, "unit": "bun_mg/dL"}}, require_units=True)
-    evaluate(CURB, {"urea": 20}, require_units=True, units=_BUN_SITE)
-    evaluate(CURB, {"urea": 8}, require_units=True, units={"urea": "mmol/L"})
+    # "not stated" uses the site's unit: BUN 19 mg/dL = 6.78 mmol/L, no urea point.
+    stated = {"value": 19, "unit": "not stated"}
+    r = evaluate(CURB, _CURB_REST | {"urea": stated}, require_units=True, units=_BUN_SITE)
+    assert r["score"] == 1 and r["converted"]["urea"]["read_as"] == "bun_mg/dL (site unit)"
+    r = evaluate(
+        CURB, _CURB_REST | {"urea": {"min": 28.014, "unit": "Not Stated"}},
+        require_units=True, units=_BUN_SITE,
+    )  # fmt: skip
+    assert r["score"] == 2
+    # Without a site unit nobody knows: ask.
+    with pytest.raises(InputError, match="Ask for the unit"):
+        evaluate(CURB, {"urea": stated}, require_units=True)
     # "normal" carries no number, and items with a single unit need nothing.
     evaluate(CURB, {"urea": "normal", "sbp": 120, "age": 70}, require_units=True)
 
@@ -750,9 +763,20 @@ def test_schema_shows_the_site_unit_or_that_a_unit_is_required():
 
     assert "site_unit" not in urea() and "unit_required" not in urea()
     assert urea(units=_BUN_SITE)["site_unit"] == "bun_mg/dL"
-    assert "number in bun_mg/dL" in urea(units=_BUN_SITE, require_units=True)["values"]
-    assert "unit_required" not in urea(units=_BUN_SITE, require_units=True)
+    assert "number in bun_mg/dL" in urea(units=_BUN_SITE)["values"]
+    both = urea(units=_BUN_SITE, require_units=True)
+    assert both["unit_required"] is True and both["site_unit"] == "bun_mg/dL"
+    assert '"not stated"' in both["values"]
     strict = urea(require_units=True)
     assert strict["unit_required"] is True and "is refused" in strict["values"]
+    assert "ask for it" in strict["values"] and "site_unit" not in strict
     sbp = next(i for i in schema(CURB, require_units=True)["items"] if i["id"] == "sbp")
     assert "unit_required" not in sbp
+
+
+def test_unit_labels_are_in_the_schema():
+    urea = next(i for i in schema(CURB)["items"] if i["id"] == "urea")
+    assert urea["unit_labels"] == {
+        "bun_mg/dL": "urea nitrogen (BUN) in mg/dL",
+        "urea_mg/dL": "urea (not urea nitrogen) in mg/dL",
+    }
