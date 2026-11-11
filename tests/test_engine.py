@@ -5,7 +5,14 @@ import random
 
 import pytest
 
-from bounded_calcs import InputError, evaluate, load_builtin, parse, schema
+from bounded_calcs import (
+    InputError,
+    check_site_units,
+    evaluate,
+    load_builtin,
+    parse,
+    schema,
+)
 from bounded_calcs.testing import assert_matches_reference, item_values
 
 CALCS = load_builtin()
@@ -681,3 +688,71 @@ def test_score_only_schema_says_so():
 def test_reference_for_a_score_only_calculator_must_return_no_category():
     with pytest.raises(AssertionError, match="score-only"):
         assert_matches_reference(_toy_scale(), lambda v: (0, "low"))
+
+
+# --- site units: the site says once what its laboratory reports --------------------------------
+
+_BUN_SITE = {"urea": "bun_mg/dL"}
+
+
+def test_a_plain_number_is_read_in_the_site_unit():
+    # A site that reports BUN in mg/dL: 28.014 means 28.014 / 2.8014 = 10 mmol/L of urea.
+    r = evaluate(CURB, _CURB_REST | {"urea": 28.014}, units=_BUN_SITE)
+    assert r["score"] == 2  # urea over 7, age 65 or more
+    assert r["converted"]["urea"] == {
+        "given": 28.014, "value": 10.0, "unit": "mmol/L", "read_as": "bun_mg/dL (site unit)",
+    }  # fmt: skip
+    # Without the site unit the same number is 28 mmol/L; with it, BUN 19 is under 7 mmol/L.
+    assert evaluate(CURB, _CURB_REST | {"urea": 19})["score"] == 2
+    assert evaluate(CURB, _CURB_REST | {"urea": 19}, units=_BUN_SITE)["score"] == 1
+
+
+def test_site_unit_applies_to_bounds_and_not_to_normal():
+    r = evaluate(CURB, _CURB_REST | {"urea": {"min": 28.014}}, units=_BUN_SITE)
+    assert r["score"] == 2 and r["converted"]["urea"]["read_as"] == "bun_mg/dL (site unit)"
+    r = evaluate(CURB, _CURB_REST | {"urea": "normal"}, units=_BUN_SITE)
+    assert r["normal_assumed"]["urea"]["unit"] == "mmol/L" and "converted" not in r
+
+
+def test_a_unit_sent_with_the_value_wins_over_the_site_unit():
+    # An outside laboratory's report in mmol/L, at a site that uses BUN in mg/dL.
+    r = evaluate(CURB, _CURB_REST | {"urea": {"value": 6, "unit": "mmol/L"}}, units=_BUN_SITE)
+    assert r["score"] == 1 and "converted" not in r
+
+
+def test_site_units_for_other_calculators_are_ignored_and_bad_ones_refused():
+    evaluate(CALCS["perc"], {"age": 40}, units=_BUN_SITE)
+    with pytest.raises(InputError, match="is not one this item takes"):
+        evaluate(CURB, {"urea": 20}, units={"urea": "mg/dL"})
+    check_site_units(CALCS, _BUN_SITE)
+    with pytest.raises(InputError, match="is not one this item takes"):
+        check_site_units(CALCS, {"urea": "mg/dL"})
+    with pytest.raises(InputError, match="no calculator has a numeric item"):
+        check_site_units(CALCS, {"confusion": "mmol/L"})
+
+
+def test_require_units_refuses_a_number_nobody_gave_a_unit_for():
+    with pytest.raises(InputError, match="reported in more than one unit"):
+        evaluate(CURB, {"urea": 20}, require_units=True)
+    with pytest.raises(InputError, match="reported in more than one unit"):
+        evaluate(CURB, {"urea": {"min": 20}}, require_units=True)
+    # Said by the value, or by the site (also when the site uses the item's own unit).
+    evaluate(CURB, {"urea": {"value": 20, "unit": "bun_mg/dL"}}, require_units=True)
+    evaluate(CURB, {"urea": 20}, require_units=True, units=_BUN_SITE)
+    evaluate(CURB, {"urea": 8}, require_units=True, units={"urea": "mmol/L"})
+    # "normal" carries no number, and items with a single unit need nothing.
+    evaluate(CURB, {"urea": "normal", "sbp": 120, "age": 70}, require_units=True)
+
+
+def test_schema_shows_the_site_unit_or_that_a_unit_is_required():
+    def urea(**kw):
+        return next(i for i in schema(CURB, **kw)["items"] if i["id"] == "urea")
+
+    assert "site_unit" not in urea() and "unit_required" not in urea()
+    assert urea(units=_BUN_SITE)["site_unit"] == "bun_mg/dL"
+    assert "number in bun_mg/dL" in urea(units=_BUN_SITE, require_units=True)["values"]
+    assert "unit_required" not in urea(units=_BUN_SITE, require_units=True)
+    strict = urea(require_units=True)
+    assert strict["unit_required"] is True and "is refused" in strict["values"]
+    sbp = next(i for i in schema(CURB, require_units=True)["items"] if i["id"] == "sbp")
+    assert "unit_required" not in sbp

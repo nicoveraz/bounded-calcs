@@ -6,7 +6,7 @@ Tools:
   evaluate(calculator_id, findings)    bounded result: settled?, possible categories,
                                        decisive unknowns to ask about
 
-Usage: bounded-calcs-mcp [--normal-ranges FILE] [stdio | sse | streamable-http]
+Usage: bounded-calcs-mcp [--normal-ranges FILE] [--units FILE] [stdio | sse | streamable-http]
 
 FILE is a YAML or JSON mapping from numeric item id to the site's own normal range, for
 example a laboratory's reference range: `urea: [2.5, 7.0]`. It replaces the default range
@@ -28,6 +28,7 @@ from mcp.server.mcpserver.exceptions import ToolError
 from bounded_calcs.engine import (
     InputError,
     check_site_ranges,
+    check_site_units,
     evaluate as _evaluate,
     schema as _schema,
 )
@@ -44,9 +45,12 @@ Workflow:
    item is normal ("vital signs normal"), send "normal" when the schema gives that item a
    normal range, and leave it unknown otherwise. If it gives only bounds ("heart rate over
    100", "SBP in the 90s"), send {"min": x, "max": y}, leaving out the bound it does not
-   give. Never invent a number. Send each value in the unit the schema states. If the note
-   gives another unit and the schema lists it for that item (other_units), send
-   {"value": x, "unit": "that unit"} and the tool converts it; otherwise convert it yourself.
+   give. Never invent a number. Send a plain number only in the unit the schema states for
+   that item. If the note gives another unit that the schema lists for the item
+   (other_units), or the schema marks the item unit_required, send
+   {"value": x, "unit": "the note's unit"} and the tool converts it. If an item is
+   unit_required and the note gives no unit, ask for the unit; never guess it. Convert a
+   unit yourself only when the schema does not list it.
 3. If the result is settled, report its category (for a score-only calculator, one whose
    schema has no categories, its score). If not, ask the clinician about the
    decisive unknowns (in the order given), add the answers, and call evaluate again.
@@ -59,6 +63,9 @@ Research and reference use only. Not a medical device; not for unsupervised clin
 CALCS = load_builtin()
 SITE_RANGES: dict[str, Any] = {}
 """The site's normal ranges, set at startup by --normal-ranges."""
+SITE_UNITS: dict[str, Any] = {}
+"""The unit the site reports each item in, set at startup by --units. An item that declares
+other units and has no site unit must come with its unit: the server never assumes one."""
 server = MCPServer(name="bounded-calcs", instructions=INSTRUCTIONS, version="0.2.0")
 
 
@@ -78,7 +85,9 @@ def list_calculators() -> list[dict[str, str]]:
 def get_schema(calculator_id: str) -> dict[str, Any]:
     """Describe a calculator: its items and allowed values, how points are assigned, the
     decision categories, the source citation, and open review notes."""
-    return _schema(_get(calculator_id), normal_ranges=SITE_RANGES)
+    return _schema(
+        _get(calculator_id), normal_ranges=SITE_RANGES, units=SITE_UNITS, require_units=True
+    )
 
 
 @server.tool()
@@ -96,7 +105,13 @@ def evaluate(calculator_id: str, findings: dict[str, Any] | None = None) -> dict
     clinician about, each with what the category would be for each possible answer.
     """
     try:
-        return _evaluate(_get(calculator_id), findings or {}, normal_ranges=SITE_RANGES)
+        return _evaluate(
+            _get(calculator_id),
+            findings or {},
+            normal_ranges=SITE_RANGES,
+            units=SITE_UNITS,
+            require_units=True,
+        )
     except InputError as e:
         raise ToolError(str(e)) from None
 
@@ -113,13 +128,33 @@ def load_site_ranges(path: str | Path) -> dict[str, Any]:
     return data
 
 
+def load_site_units(path: str | Path) -> dict[str, Any]:
+    """Read and validate a site's units file (YAML or JSON): item id to the unit the site
+    reports it in, for example `urea: bun_mg/dL`."""
+    try:
+        data = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError) as e:
+        raise InputError(f"cannot read site units from {path}: {e}") from None
+    if not isinstance(data, dict):
+        raise InputError(f"{path}: expected a mapping like 'urea: bun_mg/dL', got {data!r}")
+    check_site_units(CALCS, data)
+    return data
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(prog="bounded-calcs-mcp", description=__doc__.split("\n")[0])
     parser.add_argument("transport", nargs="?", default="stdio",
                         choices=["stdio", "sse", "streamable-http"])
     parser.add_argument("--normal-ranges", metavar="FILE",
                         help="YAML or JSON mapping of item id to the site's [lo, hi] normal range")
+    parser.add_argument("--units", metavar="FILE",
+                        help="YAML or JSON mapping of item id to the unit the site reports it in")
     args = parser.parse_args(argv)
+    if args.units:
+        try:
+            SITE_UNITS.update(load_site_units(args.units))
+        except InputError as e:
+            sys.exit(f"bounded-calcs-mcp: {e}")
     if args.normal_ranges:
         try:
             SITE_RANGES.update(load_site_ranges(args.normal_ranges))

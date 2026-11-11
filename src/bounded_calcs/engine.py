@@ -85,6 +85,21 @@ def check_site_ranges(calcs: Mapping[str, Calculator], site_ranges: Mapping[str,
         _check_range(f"site normal range for '{iid}'", value)
 
 
+def check_site_units(calcs: Mapping[str, Calculator], site_units: Mapping[str, Any]) -> None:
+    """Validate a site's units against a set of calculators: every id must be a numeric item
+    of at least one of them, and the unit one that every calculator with that item takes."""
+    numeric = {i for c in calcs.values() for i, it in c.items.items() if it.type == "numeric"}
+    for iid, unit in site_units.items():
+        if iid not in numeric:
+            raise InputError(
+                f"site unit for '{iid}': no calculator has a numeric item with this id; "
+                f"numeric items: {sorted(numeric)}"
+            )
+        for calc in calcs.values():
+            if iid in calc.items and calc.items[iid].type == "numeric":
+                _unit_factor(calc, calc.items[iid], unit)
+
+
 def _unit_factor(calc: Calculator, item: Item, unit: Any) -> tuple[str, float]:
     """The declared unit matching `unit` (letter case ignored) and its factor to the item's
     unit. An undeclared unit is an error: the engine never guesses a conversion."""
@@ -115,7 +130,11 @@ def _bands_touched(calc: Calculator, iid: str, lo: float, hi: float) -> frozense
 
 
 def _normalize(
-    calc: Calculator, inputs: dict[str, Any] | None, ranges: dict[str, tuple[float, float, str]]
+    calc: Calculator,
+    inputs: dict[str, Any] | None,
+    ranges: dict[str, tuple[float, float, str]],
+    site_units: Mapping[str, Any] | None = None,
+    require_units: bool = False,
 ) -> _Normalized:
     inputs = dict(inputs or {})
     extra = set(inputs) - set(calc.items)
@@ -167,10 +186,20 @@ def _normalize(
                 + f"; got {v!r}"
             )
             given = v
-            factor, unit_name = 1.0, None
+            factor, unit_name, read_as = 1.0, None, None
             if isinstance(v, dict) and "unit" in v:
                 unit_name, factor = _unit_factor(calc, item, v["unit"])
                 v = {k: x for k, x in v.items() if k != "unit"}
+            elif not isinstance(v, str):  # a number or bounds with no unit ("normal" needs none)
+                if site_units and iid in site_units:
+                    read_as, factor = _unit_factor(calc, item, site_units[iid])
+                elif require_units and item.units:
+                    raise InputError(
+                        f"{calc.id}.{iid}: this item is reported in more than one unit "
+                        f"({[item.unit, *item.units]}) and the site has not said which one it "
+                        'uses. Send {"value": x, "unit": u} with the unit the source gives; if '
+                        "the source gives none, ask for it. It was not scored."
+                    )
             if isinstance(v, dict) and "value" in v:
                 if set(v) != {"value"} or isinstance(v["value"], (str, dict)):
                     raise InputError(hint)
@@ -220,6 +249,8 @@ def _normalize(
                         "range": [_bound(lo), _bound(hi)],
                         "unit": item.unit,
                     }
+                    if read_as:
+                        converted[iid]["read_as"] = f"{read_as} (site unit)"
                 continue
             if isinstance(v, bool):
                 raise InputError(hint)
@@ -233,6 +264,8 @@ def _normalize(
             state[iid] = _bands_touched(calc, iid, x, x)
             if factor != 1.0:
                 converted[iid] = {"given": given, "value": round(x, 6), "unit": item.unit}
+                if read_as:
+                    converted[iid]["read_as"] = f"{read_as} (site unit)"
     return _Normalized(state, known_ranges, normal_assumed, converted)
 
 
@@ -416,6 +449,8 @@ def evaluate(
     inputs: dict[str, Any] | None = None,
     *,
     normal_ranges: Mapping[str, Any] | None = None,
+    units: Mapping[str, Any] | None = None,
+    require_units: bool = False,
 ) -> dict[str, Any]:
     """Evaluate a calculator on partial inputs.
 
@@ -427,9 +462,15 @@ def evaluate(
     `normal_ranges` maps item ids to a site's own [lo, hi] (for example its laboratory's
     reference range), replacing the spec's default for "normal". Ids this calculator does not
     have are ignored, so one mapping can serve every calculator.
+
+    `units` maps item ids to the unit the site reports that item in (one the item declares):
+    a number sent without a unit is read in it and converted. A unit sent with the value
+    wins. With `require_units`, a number without a unit is refused for an item that declares
+    other units and has no site unit: nobody has said what the number means. Normal ranges
+    and the accepted range are always in the item's own unit.
     """
     ranges = normal_ranges_in_use(calc, normal_ranges)
-    norm = _normalize(calc, inputs, ranges)
+    norm = _normalize(calc, inputs, ranges, units, require_units)
     state = norm.state
     reached = _reachable_points(calc, state)
     scores = {p[0] for p in reached}
@@ -540,10 +581,14 @@ def evaluate(
 
 
 def schema(
-    calc: Calculator, *, normal_ranges: Mapping[str, Any] | None = None
+    calc: Calculator,
+    *,
+    normal_ranges: Mapping[str, Any] | None = None,
+    units: Mapping[str, Any] | None = None,
+    require_units: bool = False,
 ) -> dict[str, Any]:
     """A description of a calculator's inputs and outputs, for clients and LLMs.
-    `normal_ranges` are a site's own ranges, as in `evaluate`."""
+    `normal_ranges`, `units` and `require_units` are as in `evaluate`."""
     ranges = normal_ranges_in_use(calc, normal_ranges)
     items = []
     for item in calc.items.values():
@@ -564,17 +609,34 @@ def schema(
             if item.units:
                 entry["other_units"] = list(item.units)
             ranged = 'a range {"min": x, "max": y} when the source gives only bounds'
+            number = f"number in {item.unit}"
+            if units and item.id in units:
+                site_unit, factor = _unit_factor(calc, item, units[item.id])
+                if factor != 1.0:
+                    entry["site_unit"] = site_unit
+                    number = (
+                        f"number in {site_unit} (this site's unit; the tool converts it to "
+                        f"{item.unit})"
+                    )
+            elif require_units and item.units:
+                entry["unit_required"] = True
+                number = (
+                    '{"value": x, "unit": u} with u one of '
+                    f"{[item.unit, *item.units]}, as the source gives it (a number without a "
+                    "unit is refused)"
+                )
+                ranged = ranged.replace('"max": y}', '"max": y, "unit": u}')
             if item.id in ranges:
                 lo, hi, source = ranges[item.id]
                 entry["normal"] = [_fmt(lo), _fmt(hi)]
                 entry["normal_source"] = source
                 entry["values"] = (
-                    f"number in {item.unit}; 'normal' when the source says only that it is "
-                    f"normal (assumed {lo:g} to {hi:g}); {ranged}; or unknown"
+                    f"{number}; 'normal' when the source says only that it is "
+                    f"normal (assumed {lo:g} to {hi:g} {item.unit}); {ranged}; or unknown"
                 )
             else:
                 entry["values"] = (
-                    f"number in {item.unit}; {ranged}; or unknown (no 'normal' for this item)"
+                    f"{number}; {ranged}; or unknown (no 'normal' for this item)"
                 )
         if item.question:
             entry["question"] = item.question
@@ -641,7 +703,8 @@ def schema(
             "and is unknown otherwise; one the source gives only as bounds ('heart rate over "
             "100') takes a range {\"min\": x, \"max\": y}. Never invent a number. A value in "
             "one of an item's other_units goes as {\"value\": x, \"unit\": u}: the tool "
-            "converts it. Items of kind 'judgment' must come from the clinician, not from a "
+            "converts it. An item marked unit_required takes only that form; an item with a "
+            "site_unit takes a plain number in that unit. Items of kind 'judgment' must come from the clinician, not from a "
             "note."
         ),
     }

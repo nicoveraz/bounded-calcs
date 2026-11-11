@@ -155,6 +155,17 @@ engine converts, and the result says so under `converted`. A unit the item does 
 an error: the engine never guesses a conversion. The accepted range is checked after
 conversion, so an unconverted BUN of 150 sent as mmol/L is refused too.
 
+**Site units.** Which unit a laboratory reports is a fact about the site, so the site states
+it once: `bounded-calcs-mcp --units units.yaml`, with lines such as `urea: bun_mg/dL`. A
+plain number for that item is then read in the site's unit and converted (`read_as` in the
+result). A unit sent with a value still wins, for a report from another laboratory. Without a
+site unit, the server refuses a plain number for any item that declares more than one unit:
+nobody has said what the number means, so the caller must send the unit the source gives, or
+ask. In the library the same behaviour is `evaluate(..., units={...}, require_units=True)`;
+by default the library reads a plain number in the item's own unit. Normal ranges and
+accepted ranges are always in the item's own unit. A note that quotes a value in another
+unit without saying so cannot be caught by any of this, except by the accepted range.
+
 **Site normal ranges.** "Normal" for a laboratory value depends on the laboratory. The
 default urea range (2.5 to 8 mmol/L) crosses the CURB-65 threshold of 7 on purpose, so "urea
 normal" is asked about when it matters. A site whose laboratory's upper limit is at most 7 can

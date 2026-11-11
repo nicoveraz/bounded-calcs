@@ -110,6 +110,8 @@ These change the engine or the input format, so they are not for unattended work
 6. ~~Unit conversion by the engine~~: done. A numeric item can declare other units with a
    factor (`units`); a value sent with a unit is converted, an undeclared unit is an error.
    CURB-65 urea takes `bun_mg/dL` and `urea_mg/dL`. Not covered: conversions with an offset.
+   A site states its units once (`--units`); without that, the server refuses a plain
+   number for an item with more than one unit.
 7. ~~Score-only calculators~~: done. A spec without `categories` returns the score and its
    range; needed for scales such as NIHSS ([#31](https://github.com/nicoveraz/bounded-calcs/issues/31)).
 
