@@ -31,12 +31,12 @@ message with `Closes #N`.
 | `canadian_syncope` | Canadian Syncope Risk Score | [P] Thiruganasambandamoorthy 2016 (figure 2 and legend) | not yet reviewed | 1 |
 | `spesi` | Simplified PESI | [P] Jiménez 2010 (table 1 and methods) | not yet reviewed | 3 |
 | `bisap` | BISAP (score only) | [P] Wu 2008 (methods and scoring sentence) | not yet reviewed | 3 |
-| `meld_na` | MELD-Na, 2008 formula (formula, score only) | [P] Kim 2008 | not yet reviewed | 6 |
+| `meld_na` | MELD-Na, 2008 formula (formula, score only) | [P] Kim 2008 | version chosen 2026-11-11; rest not yet reviewed | 5 |
 | `canadian_ct_head` | Canadian CT Head Rule | [P] Stiell 2001 (panel 1 and methods) | not yet reviewed | 1 |
 | `has_bled` | HAS-BLED (score only) | [P] Pisters 2010 (methods and table 2) | not yet reviewed | 4 |
 | `cha2ds2_vasc` | CHA2DS2-VASc | [P] Lip 2010 (table 2 and methods) | not yet reviewed | 2 |
 | `sf_syncope` | San Francisco Syncope Rule | [P] Quinn 2004 (abstract and results) | not yet reviewed | 1 |
-| `cincinnati_stroke` | Cincinnati Prehospital Stroke Scale (score only) | [P] Kothari 1999 (abstract and figure) | not yet reviewed | 0 |
+| `cincinnati_stroke` | Cincinnati Prehospital Stroke Scale | [P] Kothari 1999 (abstract and figure) | not yet reviewed | 1 |
 
 "Reviewed (calc-bounds)" means the readings were accepted by the author, an emergency
 physician, as recorded in `docs/CALCULATOR_NOTES.md` of `nicoveraz/calc-bounds`.

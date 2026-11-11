@@ -2,8 +2,9 @@
 
 Source: Kothari RU et al. Ann Emerg Med 1999;33(4):373-378, PMID 10092713, figure [P]. The
 reference is written from the figure: three items (facial droop, arm drift, speech), each
-normal or abnormal; the result is the number of abnormal items. The parts read name no
-categories, so it returns the score alone. It is deliberately not derived from the YAML spec.
+normal or abnormal; the score is the number of abnormal items; and from the abstract, which
+evaluates 'an abnormality in any 1 of the 3 stroke scale items'. It is deliberately not
+derived from the YAML spec.
 """
 
 import pytest
@@ -18,7 +19,8 @@ ZERO = {k: "absent" for k in ITEMS}
 
 
 def reference(v):
-    return sum(v[k] for k in ITEMS), None
+    score = sum(v[k] for k in ITEMS)
+    return score, "any_abnormal" if score else "all_normal"
 
 
 def test_matches_reference():
@@ -28,7 +30,12 @@ def test_matches_reference():
 @pytest.mark.parametrize("item", ITEMS)
 def test_each_abnormal_item_is_one_point(item):
     r = evaluate(CALC, ZERO | {item: "present"})
-    assert r["settled"] and r["score"] == 1 and r["category"] is None
+    assert r["settled"] and r["score"] == 1 and r["category"] == "any_abnormal"
+
+
+def test_all_normal():
+    r = evaluate(CALC, ZERO)
+    assert (r["score"], r["category"]) == (0, "all_normal")
 
 
 def test_all_three_abnormal():
@@ -36,7 +43,15 @@ def test_all_three_abnormal():
 
 
 def test_an_item_not_examined_is_not_normal():
-    # Speech slurred, face symmetric, arms not tested (patient restrained): 1 or 2.
-    r = evaluate(CALC, {"abnormal_speech": "present", "facial_droop": "absent"})
-    assert not r["settled"] and r["score_range"] == [1, 2]
+    # Face symmetric, speech normal, arms not tested (patient restrained): 0 or 1, so the
+    # scale cannot be called normal.
+    r = evaluate(CALC, {"abnormal_speech": "absent", "facial_droop": "absent"})
+    assert not r["settled"] and r["score_range"] == [0, 1]
+    assert r["possible_categories"] == ["all_normal", "any_abnormal"]
     assert [d["item"] for d in r["decisive_unknowns"]] == ["arm_drift"]
+
+
+def test_one_abnormal_item_settles_it():
+    # Speech slurred: abnormal whatever the other two show; the score is still 1 to 3.
+    r = evaluate(CALC, {"abnormal_speech": "present"})
+    assert r["settled"] and r["category"] == "any_abnormal" and r["score_range"] == [1, 3]

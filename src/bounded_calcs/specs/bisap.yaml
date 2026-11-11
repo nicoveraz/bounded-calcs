@@ -19,8 +19,10 @@ notes:
     beats/min; respirations over 20/min or PaCO2 under 32 mmHg; temperature over 38 or under
     36 degrees C; white cell count over 12 000 or under 4000 cells/mm3 or over 10% immature
     neutrophils (bands). It is worth one point however many criteria are met."
-  - "Score only: no categories are defined here. A cut-off used elsewhere (for example 3 or
-    more) must come from a source before it is added."
+  - "Score only. The source was searched for a stated cut-off on 2026-11-11: it reports that
+    most patients had scores under 2 and were at very low risk of death (under 1%), and that
+    mortality rose sharply with scores of 3 or more (5 to 20%), but it defines no categories,
+    so none are defined here."
   - "Source read on the publisher's site (gut.bmj.com) on 2026-11-11: the methods list of
     risk factors with their definitions and the sentences that state the score. The whole
     paper was not read."
