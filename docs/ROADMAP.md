@@ -84,32 +84,35 @@ number and inequality from the source.
 
 Each has an issue with the request, a first reading of the score's shape and the paper it
 needs. "Fits" is that first reading, not checked against the source. "Source" says whether the
-primary paper can be opened without Nicolás: **PMC** means a free full text exists (PubMed
-Central id given); **needs PDF** means PubMed lists no free copy.
+primary paper can be opened without Nicolás: **PMC** means a free full text exists in PubMed
+Central; **readable on the publisher's site** means the full article opened in the browser on
+2026-11-11; **needs PDF** means neither. Details are under Papers below.
 
 | Issue | Calculator | Fits the format? | Source |
 |---|---|---|---|
 | [#46](https://github.com/nicoveraz/bounded-calcs/issues/46) | Canadian Syncope Risk Score | yes (expected) | PMC |
 | [#47](https://github.com/nicoveraz/bounded-calcs/issues/47) | Modified Glasgow (Imrie) score | yes (expected) | PMC |
 | [#47](https://github.com/nicoveraz/bounded-calcs/issues/47) | Ranson's criteria | partly: criteria that are a change between two times; cut-offs by aetiology | needs PDF; version to choose |
-| [#37](https://github.com/nicoveraz/bounded-calcs/issues/37) | sPESI | yes (expected) | needs PDF |
+| [#37](https://github.com/nicoveraz/bounded-calcs/issues/37) | sPESI | yes (expected) | readable on the publisher's site |
 | [#37](https://github.com/nicoveraz/bounded-calcs/issues/37) | PESI | no: age is added as points (a formula inside a sum) | PMC |
 | [#45](https://github.com/nicoveraz/bounded-calcs/issues/45) | San Francisco Syncope Rule | yes (expected) | needs PDF |
-| [#39](https://github.com/nicoveraz/bounded-calcs/issues/39) | BISAP | yes if SIRS fits as a count | needs PDF |
+| [#39](https://github.com/nicoveraz/bounded-calcs/issues/39) | BISAP | yes if SIRS fits as a count | readable on the publisher's site |
 | [#29](https://github.com/nicoveraz/bounded-calcs/issues/29) | HAS-BLED | yes (expected) | needs PDF |
 | [#30](https://github.com/nicoveraz/bounded-calcs/issues/30) | Cincinnati Prehospital Stroke Scale | yes; can be built from the abstract as [A] | needs PDF for [P] |
-| [#31](https://github.com/nicoveraz/bounded-calcs/issues/31) | NIH Stroke Scale | score-only (done); version to choose | needs the source of the chosen version |
+| [#31](https://github.com/nicoveraz/bounded-calcs/issues/31) | NIH Stroke Scale | score-only (done); version to choose | original 1989 scale readable on the publisher's site; current form to locate |
 | [#40](https://github.com/nicoveraz/bounded-calcs/issues/40) | Killip classification | probably, with groups | needs PDF |
-| [#43](https://github.com/nicoveraz/bounded-calcs/issues/43) | West Haven criteria | probably, with groups; version to choose | needs PDF |
+| [#43](https://github.com/nicoveraz/bounded-calcs/issues/43) | West Haven criteria | probably, with groups; version to choose | 2014 guideline readable on the publisher's site; 1977 original needs PDF |
 | [#36](https://github.com/nicoveraz/bounded-calcs/issues/36) | Glasgow-Blatchford | no if points depend on sex and haemoglobin together | needs PDF |
 | [#42](https://github.com/nicoveraz/bounded-calcs/issues/42) | MELD-Na | formula (done); version to choose | PMC |
 | [#41](https://github.com/nicoveraz/bounded-calcs/issues/41) | ROX index | formula (done) | needs PDF |
 | [#44](https://github.com/nicoveraz/bounded-calcs/issues/44) | AKIN staging | no: highest of several criteria, from ratios | PMC |
-| [#38](https://github.com/nicoveraz/bounded-calcs/issues/38) | KDIGO AKI staging | no: the same | guideline; not looked up yet |
+| [#38](https://github.com/nicoveraz/bounded-calcs/issues/38) | KDIGO AKI staging | no: the same | guideline free on kdigo.org |
 | [#48](https://github.com/nicoveraz/bounded-calcs/issues/48) | Rule of nines, Lund and Browder, Parkland | Parkland is a formula (done); burn size feeds it (not supported); output is a volume to infuse, which needs Nicolás's explicit decision | needs PDFs |
 
-Suggested order: the two that fit and have a free full text (Canadian Syncope, Imrie), then
-MELD-Na as the first real formula calculator once its version is chosen.
+Suggested order: the ones that fit and whose paper can be opened (Canadian Syncope, Imrie,
+sPESI, BISAP), then MELD-Na as the first real formula calculator once its version is chosen.
+The four papers now readable for #7 (van Belle 2006, Kline 2004 and 2008, Backus 2013) can
+turn those `[A]` tags into `[P]`.
 
 ## Papers
 
