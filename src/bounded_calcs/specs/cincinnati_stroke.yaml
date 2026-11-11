@@ -1,0 +1,57 @@
+id: cincinnati_stroke
+name: Cincinnati Prehospital Stroke Scale (CPSS)
+version: 1
+purpose: >-
+  Prehospital screening for stroke: three examination items (facial droop, arm drift, speech),
+  each normal or abnormal. The scale is abnormal if any one item is abnormal; the score is
+  the number of abnormal items (0 to 3).
+citation: >-
+  Kothari RU, Pancioli A, Liu T, Brott T, Broderick J. Cincinnati Prehospital Stroke Scale:
+  reproducibility and validity. Ann Emerg Med 1999;33(4):373-378.
+  doi:10.1016/s0196-0644(99)70299-4. PMID 10092713. Figure (the scale and how each item is
+  examined and scored). [P]
+higher_is_higher_risk: true
+notes:
+  - "Each item is scored normal or abnormal as the figure defines it (Kothari 1999). One point
+    here for each abnormal item."
+  - "TODO(physician-review): the categories come from the abstract, which reports the
+    accuracy of 'an abnormality in any 1 of the 3 stroke scale items' for identifying a stroke
+    patient (added on 2026-11-11 at the author's request to take cut-offs from the sources).
+    Reading chosen: any abnormal item makes the scale abnormal. The paper does not name the
+    two categories; the names here are ours."
+  - "Source read from a PDF supplied by the author on 2026-11-11: the abstract and the
+    figure."
+
+items:
+  - id: facial_droop
+    label: >-
+      Facial droop abnormal (the patient shows teeth or smiles): one side of the face does not
+      move as well as the other
+    type: boolean
+    kind: finding
+  - id: arm_drift
+    label: >-
+      Arm drift abnormal (eyes closed, both arms extended straight out for 10 seconds): one
+      arm does not move, or one arm drifts down compared with the other
+    type: boolean
+    kind: finding
+    notes:
+      - "Normal, by the figure, includes both arms not moving at all."
+  - id: abnormal_speech
+    label: >-
+      Speech abnormal (the patient repeats a set sentence): slurs words, says the wrong words,
+      or is unable to speak
+    type: boolean
+    kind: finding
+
+components:
+  - {id: facial_droop, label: Facial droop, rule: present, item: facial_droop, points: 1}
+  - {id: arm_drift, label: Arm drift, rule: present, item: arm_drift, points: 1}
+  - {id: speech, label: Speech, rule: present, item: abnormal_speech, points: 1}
+
+categories:
+  - name: all_normal
+    label: All three items normal
+  - name: any_abnormal
+    label: Any item abnormal (the criterion the source evaluated for identifying stroke)
+    min: 1

@@ -25,8 +25,9 @@ notes:
     but not whether MELD is rounded before it enters the sodium formula. Reading chosen: the
     unrounded MELD is used and only the final result is rounded. The alternative (round MELD
     first) can differ by one point."
-  - "TODO(physician-review): this is the 2008 formula. Other versions of MELD with sodium
-    exist; which one the tool should carry is the author's decision (issue 42)."
+  - "REVIEWED(physician): this is the 2008 formula. Other versions of MELD with sodium exist;
+    the author, an emergency physician, chose to keep the 2008 version on 2026-11-11 (issue
+    42). Another version would be a separate calculator."
   - "Score only: the source gives no categories. Developed in adults with cirrhosis listed for
     a first liver transplantation; the calculator does not check this."
   - "Source read on 2026-11-11: the full text from PubMed Central, and the formula itself on

@@ -1,0 +1,98 @@
+id: canadian_ct_head
+name: Canadian CT Head Rule
+version: 1
+purpose: >-
+  Need for head CT in adults (16 years or older) with minor head injury: witnessed loss of
+  consciousness, definite amnesia or witnessed disorientation, with a GCS score of 13 to 15.
+  High risk (for neurological intervention), medium risk (for brain injury on CT), or no
+  criterion present.
+citation: >-
+  Stiell IG, Wells GA, Vandemheen K, et al. The Canadian CT Head Rule for patients with minor
+  head injury. Lancet 2001;357(9266):1391-1396. doi:10.1016/S0140-6736(00)04561-X. PMID
+  11356436. Panel 1 (the rule) and methods (inclusion and exclusion criteria). [P]
+higher_is_higher_risk: true
+notes:
+  - "Tiered rule (Stiell 2001, panel 1): CT is required for patients with minor head injury
+    with any one of the criteria. Five are high risk (for neurological intervention) and two
+    are medium risk (for brain injury on CT). The score is the number of criteria present (0
+    to 7); the category depends on the tier, not on the score."
+  - "The rule applies only to minor head injury as the source defines it (see purpose).
+    Excluded in the source: age under 16; no loss of consciousness, amnesia or disorientation;
+    no clear history of trauma as the primary event; obvious penetrating skull injury or
+    obvious depressed fracture; acute focal neurological deficit; unstable vital signs
+    associated with major trauma; a seizure before assessment; a bleeding disorder or oral
+    anticoagulants; reassessment of the same injury; pregnancy. The calculator checks only the
+    age."
+  - "Source read from a PDF supplied by the author on 2026-11-11: panel 1 and the methods
+    paragraph on inclusion and exclusion."
+
+items:
+  - id: gcs_below_15_at_2h
+    label: GCS score below 15 at 2 hours after injury
+    type: boolean
+    kind: finding
+  - id: suspected_open_or_depressed_skull_fracture
+    label: Suspected open or depressed skull fracture
+    type: boolean
+    kind: finding
+  - id: basal_skull_fracture_sign
+    label: >-
+      Any sign of basal skull fracture: haemotympanum, 'racoon' eyes, cerebrospinal fluid
+      otorrhoea or rhinorrhoea, Battle's sign
+    type: boolean
+    kind: finding
+  - id: vomiting_two_or_more_episodes
+    label: Vomiting, two or more episodes
+    type: boolean
+    kind: finding
+  - id: age
+    label: Age
+    type: numeric
+    kind: measurement
+    unit: years
+    accepts: [16, 110]
+    notes:
+      - "Accepted range from 16 years: the source excluded patients under 16. Upper end 110 as
+        in the other calculators (calc-bounds)."
+  - id: amnesia_before_impact_over_30_min
+    label: Amnesia before impact of more than 30 minutes
+    type: boolean
+    kind: finding
+    notes:
+      - "TODO(physician-review): panel 1 and the summary say 'amnesia before impact >30 min';
+        the tables of the same paper say '>=30 min'. Reading chosen: more than 30 minutes, as
+        in the rule's own panel. The two differ only at exactly 30 minutes."
+  - id: dangerous_mechanism
+    label: >-
+      Dangerous mechanism: pedestrian struck by motor vehicle, occupant ejected from motor
+      vehicle, or fall from a height of more than 3 feet or five stairs
+    type: boolean
+    kind: finding
+
+components:
+  - {id: gcs_below_15_at_2h, label: "GCS score < 15 at 2 h after injury", rule: present, item: gcs_below_15_at_2h, points: 1, group: high_risk}
+  - {id: skull_fracture, label: Suspected open or depressed skull fracture, rule: present, item: suspected_open_or_depressed_skull_fracture, points: 1, group: high_risk}
+  - {id: basal_skull_fracture_sign, label: Any sign of basal skull fracture, rule: present, item: basal_skull_fracture_sign, points: 1, group: high_risk}
+  - {id: vomiting, label: Vomiting two or more episodes, rule: present, item: vomiting_two_or_more_episodes, points: 1, group: high_risk}
+  - id: age
+    label: Age >= 65 years
+    rule: bands
+    item: age
+    bands:
+      - {gte: 65, points: 1}
+      - {points: 0}
+    group: high_risk
+  - {id: amnesia, label: "Amnesia before impact > 30 min", rule: present, item: amnesia_before_impact_over_30_min, points: 1, group: medium_risk}
+  - {id: dangerous_mechanism, label: Dangerous mechanism, rule: present, item: dangerous_mechanism, points: 1, group: medium_risk}
+
+categories:
+  - name: no_criterion
+    label: No criterion of the rule present
+  - name: medium_risk
+    label: Medium risk (for brain injury on CT), a medium-risk criterion only
+    group: medium_risk
+    min: 1
+  - name: high_risk
+    label: High risk (for neurological intervention), any high-risk criterion
+    group: high_risk
+    min: 1
