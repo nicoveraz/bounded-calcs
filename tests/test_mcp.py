@@ -79,3 +79,43 @@ def test_bad_site_normal_ranges_file_stops_the_server(tmp_path, content):
         capture_output=True, text=True, timeout=60,
     )
     assert out.returncode == 1 and "bounded-calcs-mcp:" in out.stderr
+
+
+async def _units_session(args, urea):
+    params = StdioServerParameters(
+        command=sys.executable, args=["-m", "bounded_calcs.mcp_server", *args]
+    )
+    async with stdio_client(params) as (r, w), ClientSession(r, w) as s:
+        await s.initialize()
+        findings = {"confusion": "absent", "resp_rate": 18, "sbp": 120, "dbp": 80, "age": 70,
+                    "urea": urea}
+        return await s.call_tool("evaluate", {"calculator_id": "curb65", "findings": findings})
+
+
+def test_server_refuses_a_number_without_a_unit_when_the_site_has_not_set_one():
+    # Urea is reported in mmol/L or as BUN or urea in mg/dL: 19 alone means nothing.
+    bad = asyncio.run(_units_session([], 19))
+    assert bad.is_error and "more than one unit" in bad.content[0].text
+    ok = _payload(asyncio.run(_units_session([], {"value": 19, "unit": "bun_mg/dL"})))
+    # BUN 19 mg/dL = 6.78 mmol/L, not over 7: only the age point.
+    assert ok["score"] == 1 and ok["category"] == "low"
+
+
+def test_site_units_file(tmp_path):
+    path = tmp_path / "units.yaml"
+    path.write_text("urea: bun_mg/dL\n", encoding="utf-8")
+    r = _payload(asyncio.run(_units_session(["--units", str(path)], 19)))
+    assert r["score"] == 1 and r["converted"]["urea"]["read_as"] == "bun_mg/dL (site unit)"
+
+
+@pytest.mark.parametrize("content", ["urea: mg/dL\n", "confusion: mmol/L\n", "- urea\n"])
+def test_bad_site_units_file_stops_the_server(tmp_path, content):
+    import subprocess
+
+    path = tmp_path / "units.yaml"
+    path.write_text(content, encoding="utf-8")
+    done = subprocess.run(
+        [sys.executable, "-m", "bounded_calcs.mcp_server", "--units", str(path)],
+        capture_output=True, text=True, timeout=60,
+    )  # fmt: skip
+    assert done.returncode != 0 and "bounded-calcs-mcp:" in done.stderr
