@@ -598,3 +598,86 @@ def test_other_units_are_in_the_schema():
     assert items["urea"]["other_units"] == ["bun_mg/dL", "urea_mg/dL"]
     assert "other_units" not in items["sbp"]
     assert "other_units" in s["input_rules"]
+
+
+# --- score-only calculators: no categories, the score is the result ----------------------------
+
+
+def _toy_scale():
+    # A severity scale: motor level 0 to 2, 1 point for a finding, 1 for a rate of 30 or more.
+    return parse(
+        {
+            "id": "toy_scale",
+            "name": "Toy scale",
+            "citation": "None",
+            "items": [
+                {"id": "motor", "label": "motor", "type": "ordinal", "kind": "finding",
+                 "levels": ["normal", "drift", "none"]},
+                {"id": "gaze", "label": "gaze", "type": "boolean", "kind": "finding"},
+                {"id": "rate", "label": "rate", "type": "numeric", "kind": "measurement",
+                 "unit": "/min"},
+            ],
+            "components": [
+                {"id": "motor", "rule": "levels", "item": "motor",
+                 "points": {"normal": 0, "drift": 1, "none": 2}},
+                {"id": "gaze", "rule": "present", "item": "gaze", "points": 1},
+                {"id": "rate", "rule": "bands", "item": "rate",
+                 "bands": [{"gte": 30, "points": 1}, {"points": 0}]},
+            ],
+        }
+    )  # fmt: skip
+
+
+def test_score_only_calculator_matches_a_reference():
+    calc = _toy_scale()
+    assert calc.categories == ()
+
+    def reference(v):
+        motor = {"normal": 0, "drift": 1, "none": 2}[v["motor"]]
+        return motor + v["gaze"] + (v["rate"] >= 30), None
+
+    assert_matches_reference(calc, reference)
+
+
+def test_score_only_complete_input_gives_the_score():
+    # drift 1 + gaze 1 + rate 32 (30 or more) 1 = 3.
+    r = evaluate(_toy_scale(), {"motor": "drift", "gaze": "present", "rate": 32})
+    assert r["settled"] and r["score"] == 3 and r["score_range"] == [3, 3]
+    assert r["score_only"] is True
+    assert (r["category"], r["possible_categories"], r["worst_case_category"]) == (None, [], None)
+    assert r["decisive_unknowns"] == []
+
+
+def test_score_only_unknowns_give_a_range_and_every_one_is_a_question():
+    # Known: drift (1). Unknown: gaze (0 or 1) and rate (0 or 1). Score 1 to 3.
+    r = evaluate(_toy_scale(), {"motor": "drift"})
+    assert not r["settled"] and r["score"] is None and r["score_range"] == [1, 3]
+    assert r["category"] is None and r["possible_categories"] == []
+    assert {d["item"] for d in r["decisive_unknowns"]} == {"gaze", "rate"}
+    gaze = next(d for d in r["decisive_unknowns"] if d["item"] == "gaze")
+    # Gaze present: 2 to 3. Gaze absent: 1 to 2.
+    assert gaze["outcomes"] == [
+        {"if": "present", "score_range": [2, 3]},
+        {"if": "absent", "score_range": [1, 2]},
+    ]
+    assert "single score" in r["note"]
+
+
+def test_score_only_is_not_settled_by_a_narrow_range():
+    # One unknown left: the score is one of two values, so it is not settled.
+    r = evaluate(_toy_scale(), {"motor": "none", "gaze": "absent"})
+    assert not r["settled"] and r["score_range"] == [2, 3]
+    assert [d["item"] for d in r["decisive_unknowns"]] == ["rate"]
+    # A rate known only as "over 40" is enough: it is 30 or more.
+    r = evaluate(_toy_scale(), {"motor": "none", "gaze": "absent", "rate": {"min": 40}})
+    assert r["settled"] and r["score"] == 3
+
+
+def test_score_only_schema_says_so():
+    assert schema(_toy_scale())["score_only"] is True and schema(_toy_scale())["categories"] == []
+    assert schema(CURB)["score_only"] is False
+
+
+def test_reference_for_a_score_only_calculator_must_return_no_category():
+    with pytest.raises(AssertionError, match="score-only"):
+        assert_matches_reference(_toy_scale(), lambda v: (0, "low"))

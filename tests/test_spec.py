@@ -238,3 +238,12 @@ def test_a_unit_cannot_repeat_the_item_unit_or_another_unit():
     for units in ({unit: {"multiply_by": 2}}, {"x": {"multiply_by": 2}, "X": {"divide_by": 2}}):
         with pytest.raises(SpecError):
             parse(broken(lambda d: d["items"][1].update(units=units)))
+
+
+def test_categories_may_be_left_out_for_a_score_only_calculator():
+    calc = parse(broken(lambda d: d.pop("categories")))
+    assert calc.categories == ()
+    with pytest.raises(ValueError, match="score-only"):
+        calc.category(1)
+    with pytest.raises(SpecError, match="non-empty list"):  # left out, not left empty
+        parse(broken(lambda d: d.update(categories=[])))

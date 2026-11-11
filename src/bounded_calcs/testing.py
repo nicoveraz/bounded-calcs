@@ -7,6 +7,8 @@ separately from the primary source. `assert_matches_reference` makes three compa
    threshold and on both sides of it), score and category must be identical.
 2. Partial inputs. For random sets of known items, the engine's score range and possible
    categories must equal what trying every completion in the reference gives.
+   A score-only calculator (no categories) is compared on the score alone: the reference
+   returns `(score, None)`, and the score plays the part of the category below.
 3. Unknown items. The engine's decisive / jointly relevant / irrelevant lists must match the
    same brute-force enumeration. An unknown item is decisive if knowing it alone can rule out
    a category; jointly relevant if it is not decisive but, for some values of the other
@@ -43,7 +45,7 @@ from typing import Any
 from bounded_calcs.engine import _fmt, evaluate, normal_ranges_in_use
 from bounded_calcs.spec import Calculator, band_probes
 
-Reference = Callable[[Mapping[str, Any]], tuple[float, str]]
+Reference = Callable[[Mapping[str, Any]], tuple[float, str | None]]
 
 # Above this many combinations, complete inputs are sampled instead of enumerated.
 MAX_EXHAUSTIVE = 200_000
@@ -99,7 +101,8 @@ def assert_matches_reference(
 ) -> dict[str, int]:
     """Compare `calc` with `reference` on complete and partial inputs (see module docstring).
 
-    `reference(values)` returns `(score, category_name)` for a complete input, where `values`
+    `reference(values)` returns `(score, category_name)` for a complete input (`(score, None)`
+    for a score-only calculator), where `values`
     maps each item id to a bool (boolean items), a level name (ordinal items) or a number
     (numeric items). `extra_values` adds numbers to probe for numeric items, e.g.
     `{"age": [44, 45, 64, 65]}`. `normal_ranges` are a site's own normal ranges, passed to the
@@ -110,16 +113,19 @@ def assert_matches_reference(
     if bad:
         raise ValueError(f"{calc.id}: extra_values only apply to numeric items, got {bad}")
     names = [c.name for c in calc.categories]
+    score_only = not names
     ids = list(calc.items)
     domains = {i: item_values(calc, i, extra_values.get(i, ())) for i in ids}
     exhaustive = math.prod(len(d) for d in domains.values()) <= MAX_EXHAUSTIVE
 
-    def ref(values: dict[str, Any]) -> tuple[float, str]:
+    def ref(values: dict[str, Any]) -> tuple[float, str | None]:
         out = reference(values)
-        if not (isinstance(out, tuple) and len(out) == 2 and out[1] in names):
+        ok = isinstance(out, tuple) and len(out) == 2
+        if not (ok and (out[1] is None if score_only else out[1] in names)):
+            want = "None (score-only calculator)" if score_only else f"one of {names}"
             raise AssertionError(
-                f"{calc.id}: reference must return (score, category) with category one of "
-                f"{names}; got {out!r} for {values}"
+                f"{calc.id}: reference must return (score, category) with category {want}; "
+                f"got {out!r} for {values}"
             )
         return out
 
@@ -146,7 +152,7 @@ def assert_matches_reference(
             )
         seen.add(exp_category)
         n_complete += 1
-    if exhaustive and seen != set(names):
+    if exhaustive and not score_only and seen != set(names):
         raise AssertionError(
             f"{calc.id}: no input ever reaches {sorted(set(names) - seen)}; "
             "check the category cut-offs in the spec and in the reference"
@@ -173,6 +179,8 @@ def assert_matches_reference(
         combos = list(itertools.product(*doms))
         base = {**known, **narrow}
         outcomes = [ref({**base, **dict(zip(varying, combo))}) for combo in combos]
+        if score_only:  # the score is what is being decided
+            outcomes = [(s, s) for s, _ in outcomes]
         unknown = varying
         scores = {s for s, _ in outcomes}
         cats = {c for _, c in outcomes}
@@ -181,9 +189,9 @@ def assert_matches_reference(
 
         expected: dict[str, Any] = {
             "settled": settled,
-            "category": possible[0] if settled else None,
-            "possible_categories": possible,
-            "worst_case_category": possible[-1],
+            "category": possible[0] if settled and not score_only else None,
+            "possible_categories": [] if score_only else possible,
+            "worst_case_category": None if score_only else possible[-1],
             "score": next(iter(scores)) if len(scores) == 1 else None,
             "score_range": [min(scores), max(scores)],
         }
@@ -226,7 +234,11 @@ def assert_matches_reference(
                 ("present" if v else "absent") if item.type == "boolean" else v: c
                 for v, c in outcomes_by_item[d["item"]].items()
             }
-            listed = {o["if"]: o["possible_categories"] for o in d["outcomes"]}
+            if score_only:
+                want = {k: [min(c), max(c)] for k, c in want.items()}
+                listed = {o["if"]: o["score_range"] for o in d["outcomes"]}
+            else:
+                listed = {o["if"]: o["possible_categories"] for o in d["outcomes"]}
             if listed != want:
                 wrong.append(
                     f"outcomes of '{d['item']}': engine {listed!r}, brute force over the "

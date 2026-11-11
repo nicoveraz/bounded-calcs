@@ -317,7 +317,10 @@ def _add(calc: Calculator, comp: Component, base: Points, p: float) -> Points:
     return tuple(out)
 
 
-def _category(calc: Calculator, points: Points) -> str:
+def _category(calc: Calculator, points: Points) -> Any:
+    """What a point total decides: its category, or, for a score-only calculator, the score."""
+    if not calc.categories:
+        return points[0]
     return calc.category(points[0], points[1:]).name
 
 
@@ -433,6 +436,7 @@ def evaluate(
     cats = {_category(calc, p) for p in reached}
     ordered = calc.by_risk(cats)
     settled = len(cats) == 1
+    score_only = not calc.categories
     unknown_ids = [i for i in state if _uncertain(state, i)]
 
     decisive: list[dict[str, Any]] = []
@@ -444,17 +448,23 @@ def evaluate(
             irrelevant.append(iid)
             continue
         outcomes = []
+        left = []  # how many categories (or scores) stay possible for each answer
         for v in _domain(calc, item, state):
             sub = calc.by_risk(_categories(calc, {**state, iid: v}))
-            outcomes.append({"if": _describe_value(calc, item, v), "possible_categories": sub})
-        narrows = any(len(o["possible_categories"]) < len(cats) for o in outcomes)
+            left.append(len(sub))
+            if score_only:
+                outcome = {"score_range": [_fmt(min(sub)), _fmt(max(sub))]}
+            else:
+                outcome = {"possible_categories": sub}
+            outcomes.append({"if": _describe_value(calc, item, v), **outcome})
+        narrows = any(n < len(cats) for n in left)
         if not narrows:
             # Knowing it alone cannot rule out a category, but it may still change the
             # category for some values of the other unknowns.
             (jointly if _changes_category(calc, state, iid) else irrelevant).append(iid)
             continue
-        settling = sum(1 for o in outcomes if len(o["possible_categories"]) == 1)
-        mean_left = sum(len(o["possible_categories"]) for o in outcomes) / len(outcomes)
+        settling = sum(1 for n in left if n == 1)
+        mean_left = sum(left) / len(left)
         entry_d: dict[str, Any] = {
             "item": iid,
             "label": item.label,
@@ -489,9 +499,9 @@ def evaluate(
         "calculator": calc.id,
         "calculator_version": calc.version,
         "settled": settled,
-        "category": ordered[0] if settled else None,
-        "possible_categories": ordered,
-        "worst_case_category": ordered[-1],
+        "category": ordered[0] if settled and not score_only else None,
+        "possible_categories": [] if score_only else ordered,
+        "worst_case_category": None if score_only else ordered[-1],
         "score": _fmt(next(iter(scores))) if len(scores) == 1 else None,
         "score_range": [_fmt(min(scores)), _fmt(max(scores))],
         "decisive_unknowns": decisive,
@@ -500,15 +510,19 @@ def evaluate(
         "components": components,
     }
     if settled and unknown_ids:
+        what = "score" if score_only else "category"
         result["note"] = (
-            "The category is settled: no value of the remaining unknown items can change it."
+            f"The {what} is settled: no value of the remaining unknown items can change it."
         )
     elif not settled:
         ask = "a decisive unknown" if decisive else "the jointly relevant unknowns"
+        what = "score" if score_only else "category"
         result["note"] = (
             f"Not settled. Unknown items were not assumed normal. Resolve {ask} (ask the "
-            "clinician) and evaluate again; do not report a single category yet."
+            f"clinician) and evaluate again; do not report a single {what} yet."
         )
+    if score_only:
+        result["score_only"] = True
     if norm.normal_assumed:
         result["normal_assumed"] = {
             iid: {"range": [_fmt(lo), _fmt(hi)], "unit": calc.items[iid].unit, "source": source}
@@ -618,6 +632,7 @@ def schema(
             }
             for c in calc.categories
         ],
+        "score_only": not calc.categories,
         "notes": list(calc.notes),
         "input_rules": (
             "Pass only what is documented or known. Omit an item, or send 'unknown', when the "

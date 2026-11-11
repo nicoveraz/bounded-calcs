@@ -58,6 +58,10 @@ same key, `group: <name>`; its points still count in the total. Groups express r
                  component stays outside the group the category names
 The first category has no condition.
 
+Score-only calculators: `categories` may be left out when the source gives a score and no
+decision categories (a severity scale). The result is then the score: it is settled when the
+score is exact, and every unknown item that can change the score is a question.
+
 The loader is deliberately strict: unknown keys, values YAML did not read as text, bands that
 can never match and non-exact points are errors, because each of them is a silent wrong
 answer otherwise.
@@ -199,13 +203,16 @@ class Calculator:
     higher_is_higher_risk: bool
     items: dict[str, Item]
     components: tuple[Component, ...]
-    categories: tuple[Category, ...]  # lowest first; the last whose condition holds applies
+    # Lowest first; the last whose condition holds applies. Empty: a score-only calculator.
+    categories: tuple[Category, ...]
     notes: tuple[str, ...]
     groups: tuple[str, ...] = ()  # component groups, in order of first use
 
     def category(self, score: float, group_points: Sequence[float] = ()) -> Category:
         """The category for a total score and, for calculators with groups, the points of
         each group (in the order of `groups`)."""
+        if not self.categories:
+            raise ValueError(f"{self.id}: a score-only calculator has no categories")
         if len(group_points) != len(self.groups):
             raise ValueError(f"{self.id}: expected the points of groups {list(self.groups)}")
         found = self.categories[0]
@@ -215,8 +222,11 @@ class Calculator:
                 found = c
         return found
 
-    def by_risk(self, names: set[str]) -> list[str]:
-        """Category names ordered from lowest to highest risk."""
+    def by_risk(self, names: set[Any]) -> list[Any]:
+        """Category names ordered from lowest to highest risk (for a score-only calculator,
+        scores in that order)."""
+        if not self.categories:
+            return sorted(names, reverse=not self.higher_is_higher_risk)
         order = [c.name for c in self.categories]
         if not self.higher_is_higher_risk:
             order = order[::-1]
@@ -554,7 +564,8 @@ def parse(data: Any) -> Calculator:
 
     groups = tuple(dict.fromkeys(c.group for c in components if c.group is not None))
     categories: list[Category] = []
-    for i, raw in enumerate(_list(_req(data, "categories", where), where, "categories")):
+    raw_categories = _list(data["categories"], where, "categories") if "categories" in data else []
+    for i, raw in enumerate(raw_categories):
         _only(raw, _CATEGORY_KEYS, f"{where} category")
         name = _name(_req(raw, "name", where), f"{where} category", "name")
         kw = f"{where} category '{name}'"
@@ -587,8 +598,11 @@ def parse(data: Any) -> Calculator:
                 on,
             )
         )
-    if len(categories) < 2:
-        raise SpecError(f"{where}: at least two categories are required")
+    if "categories" in data and len(categories) < 2:
+        raise SpecError(
+            f"{where}: at least two categories are required (leave 'categories' out for a "
+            "score-only calculator)"
+        )
     if len({c.name for c in categories}) != len(categories):
         raise SpecError(f"{where}: duplicate category names")
 

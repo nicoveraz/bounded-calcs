@@ -47,7 +47,8 @@ Workflow:
    give. Never invent a number. Send each value in the unit the schema states. If the note
    gives another unit and the schema lists it for that item (other_units), send
    {"value": x, "unit": "that unit"} and the tool converts it; otherwise convert it yourself.
-3. If the result is settled, report its category. If not, ask the clinician about the
+3. If the result is settled, report its category (for a score-only calculator, one whose
+   schema has no categories, its score). If not, ask the clinician about the
    decisive unknowns (in the order given), add the answers, and call evaluate again.
 4. Items of kind "judgment" (for example HEART history, Wells "alternative diagnosis less
    likely") must come from the clinician, never from your reading of the note.
