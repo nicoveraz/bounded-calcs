@@ -12,9 +12,10 @@ separately from the primary source. `assert_matches_reference` makes three compa
    a category; jointly relevant if it is not decisive but, for some values of the other
    unknowns, changing it changes the category; irrelevant otherwise.
 
-4. "normal". For a numeric item with a normal range, the reference must give the same score
-   everywhere in the range (so the range crosses no threshold of the source), and the engine
-   must treat "normal" exactly like a number inside the range.
+4. Ranges. A numeric item given as a range ({"min": x, "max": y}, or "normal" for an item
+   with a normal range) must give the same result as trying every value of the range in the
+   reference: settled if the range stays on one side of every threshold, otherwise the item
+   is still a question.
 
 The partial inputs include random ones and, for every component with more than one item,
 every combination of known, absent and unknown for its items, because interactions inside a
@@ -39,7 +40,7 @@ import random
 from collections.abc import Callable, Iterator, Mapping
 from typing import Any
 
-from bounded_calcs.engine import _fmt, evaluate
+from bounded_calcs.engine import _fmt, evaluate, normal_ranges_in_use
 from bounded_calcs.spec import Calculator, band_probes
 
 Reference = Callable[[Mapping[str, Any]], tuple[float, str]]
@@ -91,6 +92,7 @@ def assert_matches_reference(
     reference: Reference,
     extra_values: Mapping[str, Any] | None = None,
     *,
+    normal_ranges: Mapping[str, Any] | None = None,
     trials: int = 150,
     max_completions: int = 4000,
     seed: int = 0,
@@ -100,7 +102,8 @@ def assert_matches_reference(
     `reference(values)` returns `(score, category_name)` for a complete input, where `values`
     maps each item id to a bool (boolean items), a level name (ordinal items) or a number
     (numeric items). `extra_values` adds numbers to probe for numeric items, e.g.
-    `{"age": [44, 45, 64, 65]}`. Raises AssertionError on the first disagreement.
+    `{"age": [44, 45, 64, 65]}`. `normal_ranges` are a site's own normal ranges, passed to the
+    engine as in `evaluate`. Raises AssertionError on the first disagreement.
     """
     extra_values = dict(extra_values or {})
     bad = [i for i in extra_values if i not in calc.items or calc.items[i].type != "numeric"]
@@ -150,9 +153,27 @@ def assert_matches_reference(
         )
 
     # 2 and 3. Partial inputs: bounds and the classification of unknown items.
-    def check(known: dict[str, Any], unknown: list[str]) -> None:
-        combos = list(itertools.product(*(domains[i] for i in unknown)))
-        outcomes = [ref({**known, **dict(zip(unknown, combo))}) for combo in combos]
+    def bands_of(item_id: str, values: list[Any]) -> set[int]:
+        bands = calc.numeric_bands(item_id)
+        return {next(i for i, b in enumerate(bands) if b.matches(x)) for x in values}
+
+    def check(
+        known: dict[str, Any],
+        unknown: list[str],
+        ranged: Mapping[str, tuple[Any, list[float]]] | None = None,
+    ) -> None:
+        # `ranged` items are given to the engine as a range (or "normal") and tried at every
+        # value of the range by the brute force. A range inside one band is known to the
+        # engine; a wider one leaves the item uncertain, like an unknown item.
+        ranged = dict(ranged or {})
+        wide = [i for i, (_, vals) in ranged.items() if len(bands_of(i, vals)) > 1]
+        narrow = {i: vals[0] for i, (_, vals) in ranged.items() if i not in wide}
+        varying = list(unknown) + wide
+        doms = [domains[i] for i in unknown] + [ranged[i][1] for i in wide]
+        combos = list(itertools.product(*doms))
+        base = {**known, **narrow}
+        outcomes = [ref({**base, **dict(zip(varying, combo))}) for combo in combos]
+        unknown = varying
         scores = {s for s, _ in outcomes}
         cats = {c for _, c in outcomes}
         possible = calc.by_risk(cats)
@@ -186,7 +207,8 @@ def assert_matches_reference(
         expected["jointly_relevant_unknowns"] = classes["jointly"]
         expected["irrelevant_unknowns"] = classes["irrelevant"]
 
-        result = evaluate(calc, known)
+        engine_input = {**known, **{i: given for i, (given, _) in ranged.items()}}
+        result = evaluate(calc, engine_input, normal_ranges=normal_ranges)
         got = {k: result[k] for k in expected}
         got["decisive_unknowns"] = {d["item"] for d in result["decisive_unknowns"]}
         got["jointly_relevant_unknowns"] = set(result["jointly_relevant_unknowns"])
@@ -215,7 +237,7 @@ def assert_matches_reference(
                 _show(
                     f"engine and reference disagree on a partial input (unknown: {unknown})",
                     calc,
-                    known,
+                    engine_input,
                     wrong,
                 )
             )
@@ -231,7 +253,18 @@ def assert_matches_reference(
             if size * len(domains[i]) <= max_completions:
                 unknown.append(i)
                 size *= len(domains[i])
-        check({i: rng.choice(domains[i]) for i in ids if i not in unknown}, unknown)
+        known = {i: rng.choice(domains[i]) for i in ids if i not in unknown}
+        # Sometimes give one known numeric item as a range instead of a number.
+        numeric_known = [i for i in known if calc.items[i].type == "numeric"]
+        ranged: dict[str, tuple[Any, list[float]]] = {}
+        if numeric_known and rng.random() < 0.5:
+            i = rng.choice(numeric_known)
+            a, b = sorted(rng.sample(domains[i], 2) if len(domains[i]) > 1 else domains[i] * 2)
+            given: dict[str, float] = rng.choice([{"min": a, "max": b}, {"min": a}, {"max": b}])
+            lo, hi = given.get("min", -math.inf), given.get("max", math.inf)
+            ranged[i] = (given, [x for x in domains[i] if lo <= x <= hi])
+            del known[i]
+        check(known, unknown, ranged)
         n_partial += 1
 
     # Interactions inside one component: every pattern of its items, against one setting of
@@ -251,39 +284,25 @@ def assert_matches_reference(
             for values in by_rest.values():
                 check({**values, **fixed}, unknown)
                 n_partial += 1
-    # 4. "normal" for numeric items.
-    for item in calc.items.values():
-        if item.normal is None:
-            continue
-        lo, hi = item.normal
-        inside = sorted({lo, hi, (lo + hi) / 2, *(x for x in domains[item.id] if lo <= x <= hi)})
-        for values in complete_inputs(calc, extra_values, limit=2000, seed=seed):
-            out = {x: ref({**values, item.id: x})[0] for x in inside}
-            if len(set(out.values())) > 1:
-                raise AssertionError(
-                    _show(
-                        f"the normal range of '{item.id}' [{lo:g}, {hi:g}] crosses a threshold "
-                        "of the reference",
-                        calc,
-                        values,
-                        [f"reference score with {item.id}={x:g}: {s}" for x, s in out.items()],
-                    )
-                )
-        expected_note = {item.id: {"range": [_fmt(lo), _fmt(hi)], "unit": item.unit}}
+    # 4. "normal" for numeric items: the engine must treat it as every value in the range in
+    # use (the site's range when one is given, otherwise the spec's default).
+    for iid, (lo, hi, source) in normal_ranges_in_use(calc, normal_ranges).items():
+        inside = sorted({lo, hi, (lo + hi) / 2, *(x for x in domains[iid] if lo <= x <= hi)})
+        others = [i for i in ids if i != iid]
         for _ in range(trials):
-            known = {i: rng.choice(domains[i]) for i in ids if i != item.id and rng.random() < 0.5}
-            got = evaluate(calc, {**known, item.id: "normal"})
-            want = evaluate(calc, {**known, item.id: (lo + hi) / 2})
-            note = got.pop("normal_assumed", None)
-            if got != want or note != expected_note:
-                raise AssertionError(
-                    _show(
-                        f"'normal' for '{item.id}' is not treated like a number in its range",
-                        calc,
-                        known,
-                        [f"normal_assumed: {note!r}", "results differ" if got != want else ""],
-                    )
-                )
+            rng.shuffle(others)
+            unknown, size = [], len(inside)
+            for i in others[: rng.randint(0, len(others))]:
+                if size * len(domains[i]) <= max_completions:
+                    unknown.append(i)
+                    size *= len(domains[i])
+            known = {i: rng.choice(domains[i]) for i in others if i not in unknown}
+            check(known, unknown, {iid: ("normal", inside)})
+            n_partial += 1
+        note = evaluate(calc, {iid: "normal"}, normal_ranges=normal_ranges)["normal_assumed"]
+        want = {iid: {"range": [_fmt(lo), _fmt(hi)], "unit": calc.items[iid].unit, "source": source}}
+        if note != want:
+            raise AssertionError(f"{calc.id}: normal_assumed is {note!r}, expected {want!r}")
     return {"complete_inputs": n_complete, "partial_inputs": n_partial}
 
 

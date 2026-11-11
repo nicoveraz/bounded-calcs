@@ -1,0 +1,92 @@
+id: wells_dvt
+name: Wells criteria for deep vein thrombosis (two-tier)
+version: 1
+purpose: >-
+  Pretest probability of lower-extremity deep vein thrombosis in outpatients with suspected
+  DVT, dichotomized as DVT likely / DVT unlikely.
+citation: >-
+  Wells PS, Anderson DR, Rodger M, et al. Evaluation of D-dimer in the diagnosis of suspected
+  deep-vein thrombosis. N Engl J Med 2003;349(13):1227-1235. doi:10.1056/NEJMoa023153.
+  PMID 14507948. Table 1 (items, points, cut-off) and the methods. [P]
+references:
+  - "NICE guideline NG158, Venous thromboembolic diseases, table 1 (two-level DVT Wells score,
+    adapted from Wells 2003): same items, points and cut-off. [S]"
+higher_is_higher_risk: true
+notes:
+  - Items, points and the cut-off follow Wells 2003 table 1; NICE NG158 table 1 agrees.
+  - Applies to outpatients with suspected lower-extremity DVT (Wells 2003). The trial excluded
+    patients with suspected PE, pregnant patients and patients under 18. The calculator does
+    not check this.
+  - With symptoms in both legs, the more symptomatic leg is scored (Wells 2003 table 1).
+  - The score ranges from -2 to 9 because one item subtracts 2 points.
+
+items:
+  - id: malignancy
+    label: Active cancer (treatment ongoing, within 6 months, or palliative)
+    type: boolean
+    kind: finding
+  - id: paralysis_or_cast
+    label: Paralysis, paresis or recent plaster immobilisation of the lower extremities
+    type: boolean
+    kind: finding
+  - id: bedridden_or_major_surgery
+    label: >-
+      Recently bedridden for 3 days or more, or major surgery within 12 weeks requiring general
+      or regional anaesthesia
+    type: boolean
+    kind: finding
+    notes:
+      - "Wells 2003 and NICE say 3 days or more; the Wells PE spec uses more than 3 days for
+        immobilisation (NICE). Each calculator keeps its own source's wording."
+  - id: deep_vein_tenderness
+    label: Localised tenderness along the distribution of the deep venous system
+    type: boolean
+    kind: finding
+  - id: entire_leg_swollen
+    label: Entire leg swollen
+    type: boolean
+    kind: finding
+  - id: calf_swelling_3cm
+    label: >-
+      Calf swelling at least 3 cm larger than the asymptomatic side (measured 10 cm below the
+      tibial tuberosity)
+    type: boolean
+    kind: finding
+  - id: pitting_edema
+    label: Pitting oedema confined to the symptomatic leg
+    type: boolean
+    kind: finding
+  - id: collateral_veins
+    label: Collateral superficial veins (non-varicose)
+    type: boolean
+    kind: finding
+  - id: prior_dvt
+    label: Previously documented DVT
+    type: boolean
+    kind: finding
+    notes:
+      - A previous PE alone does not count; that is why this item is not Wells PE's prior_vte.
+  - id: alternative_dx_as_likely
+    label: An alternative diagnosis is at least as likely as DVT (clinician judgement)
+    type: boolean
+    kind: judgment
+    question: Is an alternative diagnosis at least as likely as DVT?
+
+components:
+  - {id: malignancy, label: Active cancer, rule: present, item: malignancy, points: 1}
+  - {id: paralysis_or_cast, label: "Paralysis, paresis or plaster cast", rule: present, item: paralysis_or_cast, points: 1}
+  - {id: bedridden_or_major_surgery, label: Bedridden or major surgery, rule: present, item: bedridden_or_major_surgery, points: 1}
+  - {id: deep_vein_tenderness, label: Deep vein tenderness, rule: present, item: deep_vein_tenderness, points: 1}
+  - {id: entire_leg_swollen, label: Entire leg swollen, rule: present, item: entire_leg_swollen, points: 1}
+  - {id: calf_swelling_3cm, label: Calf swelling of 3 cm or more, rule: present, item: calf_swelling_3cm, points: 1}
+  - {id: pitting_edema, label: Pitting oedema in the symptomatic leg, rule: present, item: pitting_edema, points: 1}
+  - {id: collateral_veins, label: Collateral superficial veins, rule: present, item: collateral_veins, points: 1}
+  - {id: prior_dvt, label: Previously documented DVT, rule: present, item: prior_dvt, points: 1}
+  - {id: alternative_dx_as_likely, label: Alternative diagnosis at least as likely, rule: present, item: alternative_dx_as_likely, points: -2}
+
+categories:
+  - name: dvt_unlikely
+    label: DVT unlikely (1 point or less)
+  - name: dvt_likely
+    label: DVT likely (2 points or more)
+    min: 2

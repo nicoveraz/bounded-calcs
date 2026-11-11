@@ -180,14 +180,94 @@ def test_normal_means_a_number_inside_the_declared_range(word):
     # Wells: heart rate > 100 scores 1.5; the declared normal range is 60 to 99.
     with_word = evaluate(WELLS, {"heart_rate": word, "dvt_signs": "present"})
     with_number = evaluate(WELLS, {"heart_rate": 80, "dvt_signs": "present"})
-    assert with_word.pop("normal_assumed") == {"heart_rate": {"range": [60, 99], "unit": "/min"}}
+    assert with_word.pop("normal_assumed") == {
+        "heart_rate": {"range": [60, 99], "unit": "/min", "source": "default"}
+    }
     assert with_word == with_number
     assert "normal_assumed" not in with_number
+
+
+# --- ranges: "normal", explicit bounds, site ranges -----------------------------------------
+
+CURB = CALCS["curb65"]
+# CURB-65 with everything known except urea: age 70 (1 point), the rest 0. Urea > 7 mmol/L
+# adds 1 point and moves the patient from low (1) to moderate (2).
+CURB_BUT_UREA = {"confusion": "absent", "resp_rate": 18, "sbp": 120, "dbp": 80, "age": 70}
+
+
+@pytest.mark.parametrize(
+    "urea,settled,category",
+    [
+        ({"min": 5, "max": 7}, True, "low"),  # never above 7
+        ({"min": 7.5}, True, "moderate"),  # always above 7
+        ({"max": 6}, True, "low"),
+        ({"min": 5, "max": 9}, False, None),  # either side of 7
+    ],
+)
+def test_range_input(urea, settled, category):
+    r = evaluate(CURB, CURB_BUT_UREA | {"urea": urea})
+    assert (r["settled"], r["category"]) == (settled, category)
+    if not settled:
+        (d,) = r["decisive_unknowns"]
+        assert d["item"] == "urea" and d["known_range"] == [urea["min"], urea["max"]]
+
+
+def test_open_range_bound_is_reported_as_none():
+    r = evaluate(CURB, CURB_BUT_UREA | {"urea": {"max": 9}})
+    urea = next(d for d in r["decisive_unknowns"] if d["item"] == "urea")
+    assert urea["known_range"] == [None, 9]
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [{}, {"min": 9, "max": 5}, {"min": "5"}, {"min": True}, {"low": 5}, {"min": float("nan")}],
+)
+def test_bad_ranges_are_rejected(bad):
+    with pytest.raises(InputError):
+        evaluate(CURB, {"urea": bad})
+
+
+def test_site_range_replaces_the_default():
+    # Default urea range 2.5 to 8 crosses 7, so "urea normal" leaves the point open.
+    r = evaluate(CURB, CURB_BUT_UREA | {"urea": "normal"})
+    assert not r["settled"] and [d["item"] for d in r["decisive_unknowns"]] == ["urea"]
+    assert r["normal_assumed"]["urea"]["source"] == "default"
+    # A laboratory whose upper limit is 7: "normal" settles it (score 1, low).
+    site = {"urea": [2.5, 7.0]}
+    r = evaluate(CURB, CURB_BUT_UREA | {"urea": "normal"}, normal_ranges=site)
+    assert r["settled"] and (r["score"], r["category"]) == (1, "low")
+    assert r["normal_assumed"] == {"urea": {"range": [2.5, 7], "unit": "mmol/L", "source": "site"}}
+    # Site ranges for items a calculator does not have are ignored.
+    assert evaluate(WELLS, {}, normal_ranges=site) == evaluate(WELLS, {})
+
+
+def test_site_range_gives_normal_to_an_item_without_a_default():
+    r = evaluate(HEART, {"age": "normal"}, normal_ranges={"age": [20, 40]})
+    assert r["normal_assumed"]["age"]["source"] == "site"
+
+
+@pytest.mark.parametrize("bad", [[7], [8, 2], ["2", "7"], "2-7"])
+def test_bad_site_ranges_are_rejected(bad):
+    with pytest.raises(InputError):
+        evaluate(CURB, {}, normal_ranges={"urea": bad})
+
+
+def test_site_ranges_are_checked_against_all_calculators():
+    from bounded_calcs import check_site_ranges
+
+    check_site_ranges(CALCS, {"urea": [2.5, 7], "heart_rate": [50, 100]})
+    with pytest.raises(InputError, match="no calculator"):
+        check_site_ranges(CALCS, {"ureaa": [2.5, 7]})
+    with pytest.raises(InputError, match="no calculator"):
+        check_site_ranges(CALCS, {"hemoptysis": [0, 1]})  # boolean, not numeric
 
 
 def test_schema_lists_the_normal_range():
     items = {i["id"]: i for i in schema(WELLS)["items"]}
     assert items["heart_rate"]["normal"] == [60, 99]
+    assert items["heart_rate"]["normal_source"] == "default"
+    site = {i["id"]: i for i in schema(CURB, normal_ranges={"urea": [2.5, 7]})["items"]}
+    assert (site["urea"]["normal"], site["urea"]["normal_source"]) == ([2.5, 7], "site")
     assert "'normal'" in items["heart_rate"]["values"]
     assert "normal" not in {i["id"]: i for i in schema(HEART)["items"]}["age"]
 

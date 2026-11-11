@@ -100,7 +100,6 @@ MISTAKES = {
     "normal range that is not a pair": lambda d: d["items"][1].update(normal=[5]),
     "normal range reversed": lambda d: d["items"][1].update(normal=[9, 5]),
     "normal range as text": lambda d: d["items"][1].update(normal=["5", "9"]),
-    "normal range across a threshold": lambda d: d["items"][1].update(normal=[5, 15]),
 }
 
 
@@ -115,9 +114,10 @@ def test_normal_range_inside_one_band_is_accepted():
     assert calc.items["b"].normal == (10, 19.9)
 
 
-def test_normal_range_error_names_the_bands():
-    with pytest.raises(SpecError, match="straddles a threshold"):
-        parse(broken(lambda d: d["items"][1].update(normal=[5, 15])))
+def test_normal_range_may_cross_a_threshold():
+    # A range across a threshold narrows the item's points instead of deciding them.
+    calc = parse(broken(lambda d: d["items"][1].update(normal=[5, 15])))
+    assert calc.items["b"].normal == (5, 15)
 
 
 def test_band_order_error_explains_the_fix():

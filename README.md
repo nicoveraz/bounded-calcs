@@ -47,6 +47,7 @@ Python 3.11 or later. The MCP server can also run without installing anything fi
 | `qsofa` | qSOFA (negative / positive) | Seymour et al., JAMA 2016. PMID 26903335; Sepsis-3 criteria | [A], [P] |
 | `pecarn_head_under2` | PECARN head injury rule, under 2 years (CT not recommended / observation versus CT / CT recommended) | Kuppermann et al., Lancet 2009. PMID 19758692 | [P] |
 | `pecarn_head_2plus` | PECARN head injury rule, 2 years and older (CT not recommended / observation versus CT / CT recommended) | Kuppermann et al., Lancet 2009. PMID 19758692 | [P] |
+| `wells_dvt` | Wells criteria for DVT, two-tier (unlikely / likely) | Wells et al., N Engl J Med 2003. PMID 14507948; NICE NG158 table 1 | [P], [S] |
 
 Verified: **[P]** primary full text read, **[A]** abstract only, **[S]** secondary source
 (guideline or later paper). All four are ported from calc-bounds, whose readings the author
@@ -90,9 +91,12 @@ that it depends on two things the note doesn't say, one of which only the clinic
 
 - **boolean** items: `"present"`, `"absent"` (or `true` / `false`)
 - **ordinal** items: one of the listed levels
-- **numeric** items: a number in the item's unit, or `"normal"` when the source says only that
-  the value is normal and the item declares a normal range (`get_schema` lists it). The result
-  then names the assumed range under `normal_assumed`
+- **numeric** items: a number in the item's unit; a range `{"min": x, "max": y}` when the
+  source gives only bounds ("heart rate over 100": `{"min": 100}`); or `"normal"` when the
+  source says only that the value is normal and the item has a normal range (`get_schema`
+  lists it). A range on one side of every threshold settles the item; one that crosses a
+  threshold leaves it as a question when it matters. The result names any range assumed for
+  "normal" under `normal_assumed`, with its source
 - anything omitted, `null`, or `"unknown"` is unknown, **never** normal
 - a numeric item without a normal range (such as age) that the source only calls "normal" is
   also unknown; never invent a number
@@ -130,6 +134,22 @@ Claude Desktop / Claude Code config:
   }
 }
 ```
+
+**Site normal ranges.** "Normal" for a laboratory value depends on the laboratory. The
+default urea range (2.5 to 8 mmol/L) crosses the CURB-65 threshold of 7 on purpose, so "urea
+normal" is asked about when it matters. A site whose laboratory's upper limit is at most 7 can
+say so once, in a YAML or JSON file, and pass it to the server:
+
+```yaml
+# ranges.yaml: item id -> [lo, hi] in the item's unit
+urea: [2.5, 7.0]
+```
+
+```bash
+uvx --from "bounded-calcs[mcp]" bounded-calcs-mcp --normal-ranges ranges.yaml
+```
+
+In Python: `evaluate(calc, findings, normal_ranges={"urea": [2.5, 7.0]})`.
 
 From a clone of this repository, use `"command": "uv"` with
 `"args": ["--directory", "/path/to/bounded-calcs", "run", "bounded-calcs-mcp"]`.
