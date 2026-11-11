@@ -67,6 +67,11 @@ Find each line of your table in this list. If a line matches nothing, stop and a
 | Rule-out rule: negative only if every criterion is met | one point per criterion that is **not** met; categories `negative` and `positive` (`min: 1`) | `perc.yaml` |
 | Tiers of criteria (any high-risk one, else any medium-risk one) | component groups: see "Groups" below | `pecarn_head_2plus.yaml` |
 | A cut-off that depends on an item (different thresholds for men and women) | component groups: see "Groups" below | `tests/test_engine.py`, toy_sex |
+| The source gives a score and no decision categories (a severity scale) | leave `categories` out: a score-only calculator | `tests/test_engine.py`, toy_scale |
+
+Never invent categories for a score-only source, and never take them from a website or a
+later paper unless the roadmap entry names that paper. In its test file the reference returns
+`(score, None)`, and the sparse-note test asserts the score range instead of the categories.
 
 It does **not** fit, and you must stop, if:
 
@@ -155,6 +160,14 @@ inventing a clinician's judgment is not.
   then "normal" narrows the item without deciding it, and the engine asks for the value when
   it matters. Never add a range for age, weight or other values that are never just
   "normal".
+- **Other units.** If the item is commonly reported in another unit, declare it with its
+  factor to the item's unit: `units: {bun_mg/dL: {divide_by: 2.8014}}` (or `multiply_by`).
+  The engine then converts a value sent as `{"value": x, "unit": "bun_mg/dL"}` and refuses
+  any unit that is not declared. Name the unit so that it cannot be misread: when two
+  analytes share a unit (urea and urea nitrogen in mg/dL), put the analyte in the name and do
+  not declare the bare unit. The factor comes from a source or from calc-bounds (`units.py`),
+  never from memory; say where in an item note. Only a factor fits: a conversion that adds
+  an offset (degrees Fahrenheit) does not, so leave it out and stop and ask if it matters.
 - **Accepted range.** A numeric item may declare `accepts: [lo, hi]`: a value outside it is
   an input error and is not scored. Use it to catch unit and transcription slips, and ages
   the score was not made for. It belongs to this calculator: do not copy it from another spec

@@ -107,6 +107,12 @@ These change the engine or the input format, so they are not for unattended work
    their own ranges (`--normal-ranges`). The urea default (2.5 to 8 mmol/L) crosses 7 on
    purpose, as decided on 2026-11-10.
 
+6. ~~Unit conversion by the engine~~: done. A numeric item can declare other units with a
+   factor (`units`); a value sent with a unit is converted, an undeclared unit is an error.
+   CURB-65 urea takes `bun_mg/dL` and `urea_mg/dL`. Not covered: conversions with an offset.
+7. ~~Score-only calculators~~: done. A spec without `categories` returns the score and its
+   range; needed for scales such as NIHSS ([#31](https://github.com/nicoveraz/bounded-calcs/issues/31)).
+
 ## Distribution ([#13](https://github.com/nicoveraz/bounded-calcs/issues/13))
 
 Decided on 2026-11-10: publish on PyPI, and no npm package for now. An `npx` wrapper would
