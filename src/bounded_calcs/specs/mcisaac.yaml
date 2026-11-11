@@ -1,0 +1,79 @@
+id: mcisaac
+name: McIsaac sore throat score (modified Centor)
+version: 1
+purpose: >-
+  Likelihood of group A streptococcal infection in patients aged 3 years or more presenting
+  with a new upper respiratory tract infection and sore throat, to guide throat culture and
+  antibiotic use.
+citation: >-
+  McIsaac WJ, White D, Tannenbaum D, Low DE. A clinical score to reduce unnecessary antibiotic
+  use in patients with sore throat. CMAJ 1998;158(1):75-83. PMID 9475915. Figure (criteria,
+  points and management by total score), methods and results. [P]
+higher_is_higher_risk: true
+notes:
+  - "Applies to patients aged 3 years or more with a new upper respiratory tract infection and
+    sore throat, seen in general practice. Excluded in the source: antibiotics in the previous
+    week and immunocompromised patients. The score was not applied to bronchitis, otitis
+    media, sinusitis, pneumonia or other lower respiratory tract syndromes. The calculator does
+    not check any of this; it scores a child under 3 like one aged 3 to 14."
+  - "In the source, a total below 0 counts as 0 and the highest total allowed is 4. This
+    calculator reports the plain sum, which runs from -1 to 5; the categories are the same
+    either way."
+  - "Suggested management (figure): 0-1, no culture or antibiotic is required; 2-3, culture
+    all and treat only if the culture result is positive; 4, culture all and treat with
+    penicillin on clinical grounds (if the patient has a high temperature or is clinically
+    unwell and presents early in the disease course)."
+
+items:
+  - id: fever_over_38
+    label: Temperature > 38 C (history of a temperature above 38 C, or measured)
+    type: boolean
+    kind: finding
+    notes:
+      - "TODO(physician-review): the figure says temperature > 38 C. The study recorded a
+        history of a temperature greater than 38 C; measuring fever at the visit was optional.
+        The reading implemented counts a reported or a measured temperature above 38 C. The
+        alternative is to count only a temperature measured at the visit."
+  - id: cough
+    label: Cough
+    type: boolean
+    kind: finding
+    notes:
+      - The point is for the absence of cough.
+  - id: tender_anterior_cervical_nodes
+    label: Tender anterior cervical adenopathy
+    type: boolean
+    kind: finding
+  - id: tonsillar_swelling_or_exudate
+    label: Tonsillar swelling or exudate
+    type: boolean
+    kind: finding
+  - id: age
+    label: Age
+    type: numeric
+    kind: measurement
+    unit: years
+
+components:
+  - {id: fever_over_38, label: Temperature > 38 C, rule: present, item: fever_over_38, points: 1}
+  - {id: cough, label: No cough, rule: absent, item: cough, points: 1}
+  - {id: tender_anterior_cervical_nodes, label: Tender anterior cervical adenopathy, rule: present, item: tender_anterior_cervical_nodes, points: 1}
+  - {id: tonsillar_swelling_or_exudate, label: Tonsillar swelling or exudate, rule: present, item: tonsillar_swelling_or_exudate, points: 1}
+  - id: age
+    label: "Age: 3-14 years +1, 15-44 years 0, 45 years or more -1"
+    rule: bands
+    item: age
+    bands:
+      - {gte: 45, points: -1}
+      - {gte: 15, points: 0}
+      - {points: 1}
+
+categories:
+  - name: no_culture_no_antibiotic
+    label: No culture or antibiotic required (score 0-1)
+  - name: culture_treat_if_positive
+    label: Culture all; treat only if the culture result is positive (score 2-3)
+    min: 2
+  - name: culture_treat_on_clinical_grounds
+    label: Culture all; treat with penicillin on clinical grounds (score 4)
+    min: 4
