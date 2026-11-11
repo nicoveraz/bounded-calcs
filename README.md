@@ -88,9 +88,12 @@ that it depends on two things the note doesn't say, one of which only the clinic
 
 - **boolean** items: `"present"`, `"absent"` (or `true` / `false`)
 - **ordinal** items: one of the listed levels
-- **numeric** items: a number in the item's unit, or `"normal"` when the source says only that
-  the value is normal and the item declares a normal range (`get_schema` lists it). The result
-  then names the assumed range under `normal_assumed`
+- **numeric** items: a number in the item's unit; a range `{"min": x, "max": y}` when the
+  source gives only bounds ("heart rate over 100": `{"min": 100}`); or `"normal"` when the
+  source says only that the value is normal and the item has a normal range (`get_schema`
+  lists it). A range on one side of every threshold settles the item; one that crosses a
+  threshold leaves it as a question when it matters. The result names any range assumed for
+  "normal" under `normal_assumed`, with its source
 - anything omitted, `null`, or `"unknown"` is unknown, **never** normal
 - a numeric item without a normal range (such as age) that the source only calls "normal" is
   also unknown; never invent a number
@@ -128,6 +131,22 @@ Claude Desktop / Claude Code config:
   }
 }
 ```
+
+**Site normal ranges.** "Normal" for a laboratory value depends on the laboratory. The
+default urea range (2.5 to 8 mmol/L) crosses the CURB-65 threshold of 7 on purpose, so "urea
+normal" is asked about when it matters. A site whose laboratory's upper limit is at most 7 can
+say so once, in a YAML or JSON file, and pass it to the server:
+
+```yaml
+# ranges.yaml: item id -> [lo, hi] in the item's unit
+urea: [2.5, 7.0]
+```
+
+```bash
+uvx --from "bounded-calcs[mcp]" bounded-calcs-mcp --normal-ranges ranges.yaml
+```
+
+In Python: `evaluate(calc, findings, normal_ranges={"urea": [2.5, 7.0]})`.
 
 From a clone of this repository, use `"command": "uv"` with
 `"args": ["--directory", "/path/to/bounded-calcs", "run", "bounded-calcs-mcp"]`.

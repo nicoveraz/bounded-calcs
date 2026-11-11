@@ -8,6 +8,7 @@ so reachable scores are the sumset of each component's reachable points.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
@@ -18,9 +19,11 @@ NORMAL_WORD = "normal"
 TRUE_WORDS = {"present", "yes", "true", "y", "1"}
 FALSE_WORDS = {"absent", "no", "false", "n", "0"}
 
-# Internal state per item: bool (boolean), str level (ordinal), int band index (numeric),
-# or None (unknown).
+# Internal state per item: bool (boolean), str level (ordinal), frozenset of band indices
+# (numeric: the bands its value may fall in; one band means known), or None (unknown).
 State = dict[str, Any]
+
+INF = float("inf")
 
 
 class InputError(ValueError):
@@ -30,11 +33,70 @@ class InputError(ValueError):
 @dataclass(frozen=True)
 class _Normalized:
     state: State
-    raw_numeric: dict[str, float]
-    normal_assumed: dict[str, tuple[float, float]]
+    known_ranges: dict[str, tuple[float, float]]
+    normal_assumed: dict[str, tuple[float, float, str]]
 
 
-def _normalize(calc: Calculator, inputs: dict[str, Any] | None) -> _Normalized:
+def _check_range(where: str, value: Any) -> tuple[float, float]:
+    if not isinstance(value, (list, tuple)) or len(value) != 2:
+        raise InputError(f"{where}: a normal range must be [lo, hi], got {value!r}")
+    lo, hi = value
+    for x in (lo, hi):
+        if isinstance(x, bool) or not isinstance(x, (int, float)) or x != x or abs(x) == INF:
+            raise InputError(f"{where}: a normal range needs two finite numbers, got {value!r}")
+    if lo > hi:
+        raise InputError(f"{where}: a normal range must have lo <= hi, got {value!r}")
+    return float(lo), float(hi)
+
+
+def normal_ranges_in_use(
+    calc: Calculator, site_ranges: Mapping[str, Any] | None = None
+) -> dict[str, tuple[float, float, str]]:
+    """Effective normal range per numeric item: the site's range when one is given, otherwise
+    the spec's default. Site ranges for items this calculator does not have are ignored."""
+    out: dict[str, tuple[float, float, str]] = {}
+    for iid, item in calc.items.items():
+        if item.type != "numeric":
+            continue
+        if site_ranges and iid in site_ranges:
+            lo, hi = _check_range(f"site normal range for '{iid}'", site_ranges[iid])
+            out[iid] = (lo, hi, "site")
+        elif item.normal is not None:
+            out[iid] = (item.normal[0], item.normal[1], "default")
+    return out
+
+
+def check_site_ranges(calcs: Mapping[str, Calculator], site_ranges: Mapping[str, Any]) -> None:
+    """Validate a site's normal ranges against a set of calculators: every id must be a
+    numeric item of at least one of them, and every range [lo, hi] with lo <= hi."""
+    numeric = {i for c in calcs.values() for i, it in c.items.items() if it.type == "numeric"}
+    for iid, value in site_ranges.items():
+        if iid not in numeric:
+            raise InputError(
+                f"site normal range for '{iid}': no calculator has a numeric item with this "
+                f"id; numeric items: {sorted(numeric)}"
+            )
+        _check_range(f"site normal range for '{iid}'", value)
+
+
+def _bands_touched(calc: Calculator, iid: str, lo: float, hi: float) -> frozenset[int]:
+    """Indices of the bands that contain some value in [lo, hi]. Bands are intervals bounded
+    by thresholds, so probing both ends and each threshold inside, with a point on either
+    side of it, finds all of them."""
+    bands = calc.numeric_bands(iid)
+    probes = [lo, hi]
+    for t in {b.value for b in bands if b.value is not None}:
+        if lo <= t <= hi:
+            eps = 1e-9 * max(1.0, abs(t))
+            probes += [t, t - eps, t + eps]
+    return frozenset(
+        next(i for i, b in enumerate(bands) if b.matches(x)) for x in probes if lo <= x <= hi
+    )
+
+
+def _normalize(
+    calc: Calculator, inputs: dict[str, Any] | None, ranges: dict[str, tuple[float, float, str]]
+) -> _Normalized:
     inputs = dict(inputs or {})
     extra = set(inputs) - set(calc.items)
     if extra:
@@ -42,8 +104,8 @@ def _normalize(calc: Calculator, inputs: dict[str, Any] | None) -> _Normalized:
             f"{calc.id}: unknown item(s) {sorted(extra)}; valid items: {sorted(calc.items)}"
         )
     state: State = {}
-    raw_numeric: dict[str, float] = {}
-    normal_assumed: dict[str, tuple[float, float]] = {}
+    known_ranges: dict[str, tuple[float, float]] = {}
+    normal_assumed: dict[str, tuple[float, float, str]] = {}
     for iid, item in calc.items.items():
         v = inputs.get(iid)
         if v is None or (isinstance(v, str) and v.strip().lower() in UNKNOWN_WORDS):
@@ -65,25 +127,47 @@ def _normalize(calc: Calculator, inputs: dict[str, Any] | None) -> _Normalized:
                 )
             state[iid] = v
         else:  # numeric
-            if item.normal is not None:
-                lo, hi = item.normal
-                hint = (
-                    f"{calc.id}.{iid}: expected a number in {item.unit}, 'normal' (assumed "
-                    f"{lo:g} to {hi:g} {item.unit}) when the source says only that it is normal, "
-                    f"or unknown; got {v!r}"
-                )
-            else:
-                hint = (
-                    f"{calc.id}.{iid}: expected a number in {item.unit}, or unknown. This item "
-                    f"has no normal range, so send unknown when the source gives no number; "
-                    f"got {v!r}"
-                )
+            rng = ranges.get(iid)
+            normal_text = (
+                f"'normal' (assumed {rng[0]:g} to {rng[1]:g} {item.unit}) when the source says "
+                "only that it is normal, "
+                if rng
+                else ""
+            )
+            hint = (
+                f"{calc.id}.{iid}: expected a number in {item.unit}, {normal_text}a range "
+                '{"min": x, "max": y} (either bound may be left out), or unknown'
+                + ("" if rng else "; this item has no normal range")
+                + f"; got {v!r}"
+            )
             if isinstance(v, str) and v.strip().lower() == NORMAL_WORD:
-                if item.normal is None:
+                if rng is None:
                     raise InputError(hint)
-                bands = calc.numeric_bands(iid)
-                state[iid] = next(i for i, b in enumerate(bands) if b.matches(item.normal[0]))
-                normal_assumed[iid] = item.normal
+                lo, hi, source = rng
+                state[iid] = _bands_touched(calc, iid, lo, hi)
+                known_ranges[iid] = (lo, hi)
+                normal_assumed[iid] = rng
+                continue
+            if isinstance(v, dict):
+                keys = set(v)
+                if not keys or keys - {"min", "max"}:
+                    raise InputError(hint)
+                bounds = []
+                for key, default in (("min", -INF), ("max", INF)):
+                    x = v.get(key, default)
+                    if key in v and (
+                        isinstance(x, bool)
+                        or not isinstance(x, (int, float))
+                        or x != x
+                        or abs(x) == INF
+                    ):
+                        raise InputError(hint)
+                    bounds.append(float(x))
+                lo, hi = bounds
+                if lo > hi:
+                    raise InputError(f"{calc.id}.{iid}: range has min > max: {v!r}")
+                state[iid] = _bands_touched(calc, iid, lo, hi)
+                known_ranges[iid] = (lo, hi)
                 continue
             if isinstance(v, bool):
                 raise InputError(hint)
@@ -91,20 +175,27 @@ def _normalize(calc: Calculator, inputs: dict[str, Any] | None) -> _Normalized:
                 x = float(v)
             except (TypeError, ValueError):
                 raise InputError(hint) from None
-            if x != x or x in (float("inf"), float("-inf")):
+            if x != x or abs(x) == INF:
                 raise InputError(hint)
-            state[iid] = next(i for i, b in enumerate(calc.numeric_bands(iid)) if b.matches(x))
-            raw_numeric[iid] = x
-    return _Normalized(state, raw_numeric, normal_assumed)
+            state[iid] = _bands_touched(calc, iid, x, x)
+    return _Normalized(state, known_ranges, normal_assumed)
 
 
-def _domain(calc: Calculator, item: Item) -> list[Any]:
-    """Every internal value an unknown item could take."""
+def _uncertain(state: State, iid: str) -> bool:
+    """True if the item's value is not settled: unknown, or a range over several bands."""
+    v = state[iid]
+    return v is None or (isinstance(v, frozenset) and len(v) > 1)
+
+
+def _domain(calc: Calculator, item: Item, state: State) -> list[Any]:
+    """Every value an uncertain item could still take, in the form stored in the state."""
     if item.type == "boolean":
         return [True, False]
     if item.type == "ordinal":
         return list(item.levels)
-    return list(range(len(calc.numeric_bands(item.id))))
+    v = state[item.id]
+    bands = sorted(v) if v is not None else range(len(calc.numeric_bands(item.id)))
+    return [frozenset({i}) for i in bands]
 
 
 def _component_points(comp: Component, state: State) -> set[float]:
@@ -119,7 +210,7 @@ def _component_points(comp: Component, state: State) -> set[float]:
         return {comp.level_points[v]} if v is not None else set(comp.level_points.values())
     if comp.rule == "bands":
         v = state[comp.items[0]]
-        return {comp.bands[v].points} if v is not None else {b.points for b in comp.bands}
+        return {b.points for i, b in enumerate(comp.bands) if v is None or i in v}
     if comp.rule == "any_of":
         assert comp.points is not None
         flags = [_condition_met(comp, state, i) for i in comp.items]
@@ -147,7 +238,10 @@ def _condition_met(comp: Component, state: State, item_id: str) -> bool | None:
     v = state[item_id]
     if v is None:
         return None
-    return bool(v) if item_id not in comp.conditions else v == 0
+    if item_id not in comp.conditions:
+        return bool(v)
+    # Numeric condition: band 0 is "met", band 1 is "not met".
+    return None if len(v) > 1 else 0 in v
 
 
 def _count_points(comp: Component, n: int) -> float:
@@ -221,7 +315,8 @@ def _describe_value(calc: Calculator, item: Item, v: Any) -> str:
         return "present" if v else "absent"
     if item.type == "ordinal":
         return str(v)
-    band = calc.numeric_bands(item.id)[v]
+    (index,) = v
+    band = calc.numeric_bands(item.id)[index]
     if calc.component_of(item.id).rule == "any_of" and band.op is None:
         met = calc.numeric_bands(item.id)[0]
         return "not " + met.describe(item.unit)
@@ -232,20 +327,36 @@ def _fmt(x: float) -> float | int:
     return int(x) if float(x).is_integer() else x
 
 
-def evaluate(calc: Calculator, inputs: dict[str, Any] | None = None) -> dict[str, Any]:
+def _bound(x: float) -> float | int | None:
+    """A range bound for JSON output: None for an open end."""
+    return None if abs(x) == INF else _fmt(x)
+
+
+def evaluate(
+    calc: Calculator,
+    inputs: dict[str, Any] | None = None,
+    *,
+    normal_ranges: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
     """Evaluate a calculator on partial inputs.
 
     `inputs` maps item id to a value. Items that are omitted, None, or "unknown" are unknown.
     Boolean items take present/absent (or true/false); ordinal items take one of their
-    levels; numeric items take a number in the item's unit.
+    levels; numeric items take a number in the item's unit, a range {"min": x, "max": y}
+    (either bound may be left out), or "normal" when the item has a normal range.
+
+    `normal_ranges` maps item ids to a site's own [lo, hi] (for example its laboratory's
+    reference range), replacing the spec's default for "normal". Ids this calculator does not
+    have are ignored, so one mapping can serve every calculator.
     """
-    norm = _normalize(calc, inputs)
+    ranges = normal_ranges_in_use(calc, normal_ranges)
+    norm = _normalize(calc, inputs, ranges)
     state = norm.state
     scores = _reachable_scores(calc, state)
     cats = {calc.category(s).name for s in scores}
     ordered = calc.by_risk(cats)
     settled = len(cats) == 1
-    unknown_ids = [i for i, v in state.items() if v is None]
+    unknown_ids = [i for i in state if _uncertain(state, i)]
 
     decisive: list[dict[str, Any]] = []
     irrelevant: list[str] = []
@@ -256,7 +367,7 @@ def evaluate(calc: Calculator, inputs: dict[str, Any] | None = None) -> dict[str
             irrelevant.append(iid)
             continue
         outcomes = []
-        for v in _domain(calc, item):
+        for v in _domain(calc, item, state):
             sub = calc.by_risk(_categories(calc, {**state, iid: v}))
             outcomes.append({"if": _describe_value(calc, item, v), "possible_categories": sub})
         narrows = any(len(o["possible_categories"]) < len(cats) for o in outcomes)
@@ -267,19 +378,21 @@ def evaluate(calc: Calculator, inputs: dict[str, Any] | None = None) -> dict[str
             continue
         settling = sum(1 for o in outcomes if len(o["possible_categories"]) == 1)
         mean_left = sum(len(o["possible_categories"]) for o in outcomes) / len(outcomes)
-        decisive.append(
-            {
-                "item": iid,
-                "label": item.label,
-                "kind": item.kind,
-                "question": item.question or item.label,
-                "settles_decision_in": f"{settling} of {len(outcomes)} answers",
-                "outcomes": outcomes,
-                # Prefer items that settle more often, then narrow more on average; among
-                # equals, ask for data before asking for a judgment.
-                "_rank": (-settling / len(outcomes), mean_left, item.kind == "judgment"),
-            }
-        )
+        entry_d: dict[str, Any] = {
+            "item": iid,
+            "label": item.label,
+            "kind": item.kind,
+            "question": item.question or item.label,
+            "settles_decision_in": f"{settling} of {len(outcomes)} answers",
+            "outcomes": outcomes,
+            # Prefer items that settle more often, then narrow more on average; among
+            # equals, ask for data before asking for a judgment.
+            "_rank": (-settling / len(outcomes), mean_left, item.kind == "judgment"),
+        }
+        if iid in norm.known_ranges:
+            lo, hi = norm.known_ranges[iid]
+            entry_d["known_range"] = [_bound(lo), _bound(hi)]
+        decisive.append(entry_d)
     decisive.sort(key=lambda d: d["_rank"])
     for d in decisive:
         del d["_rank"]
@@ -292,7 +405,7 @@ def evaluate(calc: Calculator, inputs: dict[str, Any] | None = None) -> dict[str
             entry["points"] = _fmt(pts[0])
         else:
             entry["points_range"] = [_fmt(pts[0]), _fmt(pts[-1])]
-            entry["unknown_items"] = [i for i in comp.items if state[i] is None]
+            entry["unknown_items"] = [i for i in comp.items if _uncertain(state, i)]
         components.append(entry)
 
     result: dict[str, Any] = {
@@ -321,8 +434,8 @@ def evaluate(calc: Calculator, inputs: dict[str, Any] | None = None) -> dict[str
         )
     if norm.normal_assumed:
         result["normal_assumed"] = {
-            iid: {"range": [_fmt(lo), _fmt(hi)], "unit": calc.items[iid].unit}
-            for iid, (lo, hi) in norm.normal_assumed.items()
+            iid: {"range": [_fmt(lo), _fmt(hi)], "unit": calc.items[iid].unit, "source": source}
+            for iid, (lo, hi, source) in norm.normal_assumed.items()
         }
     judgment_pending = [d["item"] for d in decisive if d["kind"] == "judgment"]
     if judgment_pending:
@@ -333,8 +446,12 @@ def evaluate(calc: Calculator, inputs: dict[str, Any] | None = None) -> dict[str
     return result
 
 
-def schema(calc: Calculator) -> dict[str, Any]:
-    """A description of a calculator's inputs and outputs, for clients and LLMs."""
+def schema(
+    calc: Calculator, *, normal_ranges: Mapping[str, Any] | None = None
+) -> dict[str, Any]:
+    """A description of a calculator's inputs and outputs, for clients and LLMs.
+    `normal_ranges` are a site's own ranges, as in `evaluate`."""
+    ranges = normal_ranges_in_use(calc, normal_ranges)
     items = []
     for item in calc.items.values():
         entry: dict[str, Any] = {
@@ -349,15 +466,19 @@ def schema(calc: Calculator) -> dict[str, Any]:
             entry["values"] = [*item.levels, "unknown"]
         else:
             entry["unit"] = item.unit
-            if item.normal is not None:
-                lo, hi = item.normal
+            ranged = 'a range {"min": x, "max": y} when the source gives only bounds'
+            if item.id in ranges:
+                lo, hi, source = ranges[item.id]
                 entry["normal"] = [_fmt(lo), _fmt(hi)]
+                entry["normal_source"] = source
                 entry["values"] = (
                     f"number in {item.unit}; 'normal' when the source says only that it is "
-                    f"normal (assumed {lo:g} to {hi:g}); or unknown"
+                    f"normal (assumed {lo:g} to {hi:g}); {ranged}; or unknown"
                 )
             else:
-                entry["values"] = f"number in {item.unit}, or unknown (no 'normal' for this item)"
+                entry["values"] = (
+                    f"number in {item.unit}; {ranged}; or unknown (no 'normal' for this item)"
+                )
         if item.question:
             entry["question"] = item.question
         if item.notes:
@@ -418,7 +539,8 @@ def schema(calc: Calculator) -> dict[str, Any]:
             "Pass only what is documented or known. Omit an item, or send 'unknown', when the "
             "source does not mention it: never fill it in as absent or normal. A numeric item "
             "the source describes only as normal takes 'normal' if the item has a normal range, "
-            "and is unknown otherwise; never invent a number. Items of kind 'judgment' must come "
-            "from the clinician, not from a note."
+            "and is unknown otherwise; one the source gives only as bounds ('heart rate over "
+            "100') takes a range {\"min\": x, \"max\": y}. Never invent a number. Items of kind "
+            "'judgment' must come from the clinician, not from a note."
         ),
     }

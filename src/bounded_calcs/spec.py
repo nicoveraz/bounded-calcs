@@ -10,9 +10,10 @@ Item types:
   ordinal   one of `levels`, or unknown (also used for unordered choices such as sex)
   numeric   a number in `unit`, or unknown
 
-A numeric item may declare `normal: [lo, hi]`: the range assumed when a source says only that
-the value is normal ("vital signs normal"). The range must fall inside a single band of the
-component that uses the item, so "normal" decides the item's points exactly.
+A numeric item may declare `normal: [lo, hi]`: the default range assumed when a source says
+only that the value is normal ("vital signs normal"). A site can replace it with its own range
+(see `evaluate`). A range inside one band decides the item's points; a range that crosses a
+threshold only narrows them, and the item stays a question when it matters.
 
 Item kinds (who can supply the value):
   finding      can be read from a note or chart
@@ -511,19 +512,6 @@ def parse(data: Any) -> Calculator:
         categories=tuple(categories),
         notes=_texts(data.get("notes", []), where, "notes"),
     )
-    for item in items.values():
-        if item.normal is None:
-            continue
-        bands = calc.numeric_bands(item.id)
-        lo, hi = item.normal
-        band_lo = next(b for b in bands if b.matches(lo))
-        band_hi = next(b for b in bands if b.matches(hi))
-        if band_lo is not band_hi:
-            raise SpecError(
-                f"{where} item '{item.id}': normal range [{lo:g}, {hi:g}] straddles a threshold "
-                f"({lo:g} falls in '{band_lo.describe(item.unit)}', {hi:g} in "
-                f"'{band_hi.describe(item.unit)}'); a normal range must fall in a single band"
-            )
     return calc
 
 
