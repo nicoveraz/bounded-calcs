@@ -37,6 +37,16 @@ Component rules:
 
 Points may be negative. They must be whole or half numbers so that sums stay exact.
 
+Categories are listed from lowest to highest; a patient gets the last one whose condition
+holds. A condition is a lower bound (`min` or `gt`) on the total score, or, with
+`group: <name>`, on the points of one group of components. A component joins a group with the
+same key, `group: <name>`; its points still count in the total. Groups express rules that a single total cannot:
+  tiers          "imaging if any high-risk criterion, else observe if any medium-risk one":
+                 the criteria of each tier form a group, and each category names its group
+  a cut-off that depends on an item (different thresholds for men and women): the item's
+                 component stays outside the group the category names
+The first category has no condition.
+
 The loader is deliberately strict: unknown keys, values YAML did not read as text, bands that
 can never match and non-exact points are errors, because each of them is a silent wrong
 answer otherwise.
@@ -44,6 +54,7 @@ answer otherwise.
 
 from __future__ import annotations
 
+import dataclasses
 import itertools
 import math
 import re
@@ -69,16 +80,16 @@ _TOP_KEYS = {
 }  # fmt: skip
 _ITEM_KEYS = {"id", "label", "type", "kind", "levels", "unit", "normal", "question", "notes"}
 _COMPONENT_KEYS = {
-    "present": {"id", "label", "rule", "item", "points"},
-    "absent": {"id", "label", "rule", "item", "points"},
-    "levels": {"id", "label", "rule", "item", "points"},
-    "bands": {"id", "label", "rule", "item", "bands"},
-    "count": {"id", "label", "rule", "items", "points", "override", "override_points"},
-    "any_of": {"id", "label", "rule", "conditions", "points"},
+    "present": {"id", "label", "rule", "item", "points", "group"},
+    "absent": {"id", "label", "rule", "item", "points", "group"},
+    "levels": {"id", "label", "rule", "item", "points", "group"},
+    "bands": {"id", "label", "rule", "item", "bands", "group"},
+    "count": {"id", "label", "rule", "items", "points", "override", "override_points", "group"},
+    "any_of": {"id", "label", "rule", "conditions", "points", "group"},
 }
 _BAND_KEYS = {*BAND_OPS, "points"}
 _CONDITION_KEYS = {*BAND_OPS, "item"}
-_CATEGORY_KEYS = {"name", "label", "min", "gt", "meaning"}
+_CATEGORY_KEYS = {"name", "label", "min", "gt", "group", "meaning"}
 
 _NOT_TEXT = (
     "YAML reads bare yes/no/on/off/true/false and numbers as non-text, and turns an unquoted "
@@ -139,18 +150,26 @@ class Component:
     override: str | None = None  # count
     override_points: float | None = None  # count
     conditions: dict[str, Band] = field(default_factory=dict)  # any_of: numeric item -> "met"
+    group: str | None = None
 
 
 @dataclass(frozen=True)
 class Category:
     name: str
     label: str
-    lower: float  # score >= lower (or > lower when lower_strict)
+    lower: float  # points >= lower (or > lower when lower_strict)
     lower_strict: bool
     meaning: str = ""
+    on: str | None = None  # the group whose points are compared; None = the total score
 
-    def admits(self, score: float) -> bool:
-        return score > self.lower if self.lower_strict else score >= self.lower
+    def admits(self, points: float) -> bool:
+        return points > self.lower if self.lower_strict else points >= self.lower
+
+    def condition(self) -> str:
+        if self.lower == -math.inf:
+            return "lowest"
+        what = "score" if self.on is None else f"points in group '{self.on}'"
+        return f"{what} {'>' if self.lower_strict else '>='} {self.lower:g}"
 
 
 @dataclass(frozen=True)
@@ -164,16 +183,20 @@ class Calculator:
     higher_is_higher_risk: bool
     items: dict[str, Item]
     components: tuple[Component, ...]
-    categories: tuple[Category, ...]  # ascending by score
+    categories: tuple[Category, ...]  # lowest first; the last whose condition holds applies
     notes: tuple[str, ...]
+    groups: tuple[str, ...] = ()  # component groups, in order of first use
 
-    def category(self, score: float) -> Category:
-        found = None
-        for c in self.categories:
-            if c.admits(score):
+    def category(self, score: float, group_points: Sequence[float] = ()) -> Category:
+        """The category for a total score and, for calculators with groups, the points of
+        each group (in the order of `groups`)."""
+        if len(group_points) != len(self.groups):
+            raise ValueError(f"{self.id}: expected the points of groups {list(self.groups)}")
+        found = self.categories[0]
+        for c in self.categories[1:]:
+            points = score if c.on is None else group_points[self.groups.index(c.on)]
+            if c.admits(points):
                 found = c
-        if found is None:
-            raise SpecError(f"{self.id}: score {score} below all categories")
         return found
 
     def by_risk(self, names: set[str]) -> list[str]:
@@ -446,6 +469,8 @@ def parse(data: Any) -> Calculator:
                 override=override,
                 override_points=_points(raw["override_points"], cw) if override else None,
             )
+        if "group" in raw:
+            comp = dataclasses.replace(comp, group=_name(raw["group"], cw, "group"))
         for iid in comp.items:
             if iid in owner:
                 raise SpecError(
@@ -461,14 +486,20 @@ def parse(data: Any) -> Calculator:
     if unused:
         raise SpecError(f"{where}: items not used by any component: {sorted(unused)}")
 
+    groups = tuple(dict.fromkeys(c.group for c in components if c.group is not None))
     categories: list[Category] = []
     for i, raw in enumerate(_list(_req(data, "categories", where), where, "categories")):
         _only(raw, _CATEGORY_KEYS, f"{where} category")
         name = _name(_req(raw, "name", where), f"{where} category", "name")
         kw = f"{where} category '{name}'"
         has_min, has_gt = "min" in raw, "gt" in raw
+        on = raw.get("group")  # not "on": YAML reads a bare `on` as true
+        if on is not None and on not in groups:
+            raise SpecError(
+                f"{kw}: 'group' must name a component group; this calculator has {list(groups)}"
+            )
         if i == 0:
-            if has_min or has_gt:
+            if has_min or has_gt or on is not None:
                 raise SpecError(f"{kw}: the first category must have no lower bound")
             lower, strict = -math.inf, False
         else:
@@ -476,7 +507,9 @@ def parse(data: Any) -> Calculator:
                 raise SpecError(f"{kw}: needs exactly one of 'min' or 'gt'")
             key = "min" if has_min else "gt"
             lower, strict = _number(raw[key], kw, f"'{key}'"), has_gt
-            if lower <= categories[-1].lower:
+            # Bounds on the same thing (the total, or one group) must ascend.
+            earlier = [c.lower for c in categories if c.on == on]
+            if earlier and lower <= earlier[-1]:
                 raise SpecError(f"{where}: categories must be listed in ascending score order")
         categories.append(
             Category(
@@ -485,6 +518,7 @@ def parse(data: Any) -> Calculator:
                 lower,
                 strict,
                 _text(raw["meaning"], kw, "meaning") if "meaning" in raw else "",
+                on,
             )
         )
     if len(categories) < 2:
@@ -511,6 +545,7 @@ def parse(data: Any) -> Calculator:
         components=tuple(components),
         categories=tuple(categories),
         notes=_texts(data.get("notes", []), where, "notes"),
+        groups=groups,
     )
     return calc
 

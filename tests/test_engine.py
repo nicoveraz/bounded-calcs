@@ -343,3 +343,131 @@ def test_count_component_never_leaves_an_unsettled_result_without_questions():
                 assert r["decisive_unknowns"] or r["jointly_relevant_unknowns"], rest | pattern
             checked += 1
     assert checked == 3 ** 7 * 36
+
+
+# --- component groups ----------------------------------------------------------------------
+
+
+def test_groups_cut_off_that_depends_on_an_item():
+    # A score with a point for female sex and a treatment cut-off of 2 for men and 3 for
+    # women: the cut-off is on the points outside the sex component.
+    calc = parse(
+        {
+            "id": "toy_sex",
+            "name": "Toy with a sex-dependent cut-off",
+            "citation": "None",
+            "items": [
+                {"id": "sex", "label": "Sex", "type": "ordinal", "kind": "finding",
+                 "levels": ["male", "female"]},
+                {"id": "age", "label": "Age", "type": "numeric", "kind": "measurement",
+                 "unit": "years"},
+                {"id": "htn", "label": "Hypertension", "type": "boolean", "kind": "finding"},
+                {"id": "dm", "label": "Diabetes", "type": "boolean", "kind": "finding"},
+            ],
+            "components": [
+                {"id": "sex", "rule": "levels", "item": "sex", "points": {"male": 0, "female": 1}},
+                {"id": "age", "rule": "bands", "item": "age", "group": "other",
+                 "bands": [{"gte": 75, "points": 2}, {"gte": 65, "points": 1}, {"points": 0}]},
+                {"id": "htn", "rule": "present", "item": "htn", "points": 1, "group": "other"},
+                {"id": "dm", "rule": "present", "item": "dm", "points": 1, "group": "other"},
+            ],
+            "categories": [
+                {"name": "no_treatment"},
+                {"name": "consider", "group": "other", "min": 1},
+                {"name": "treat", "group": "other", "min": 2},
+            ],
+        }
+    )  # fmt: skip
+
+    def reference(v):
+        female = v["sex"] == "female"
+        score = female + (2 if v["age"] >= 75 else 1 if v["age"] >= 65 else 0) + v["htn"] + v["dm"]
+        if score >= (3 if female else 2):
+            return score, "treat"
+        return score, "consider" if score >= (2 if female else 1) else "no_treatment"
+
+    assert_matches_reference(calc, reference)
+    # A woman of 70 with nothing else: score 2, but the cut-off for women is 3.
+    r = evaluate(calc, {"sex": "female", "age": 70, "htn": "absent", "dm": "absent"})
+    assert (r["score"], r["category"]) == (2, "consider")
+    # Sex unknown: the score is open (1 or 2) but the category is not, so sex is not asked.
+    r = evaluate(calc, {"age": 70, "htn": "absent", "dm": "absent"})
+    assert r["settled"] and r["category"] == "consider" and r["score_range"] == [1, 2]
+    assert r["irrelevant_unknowns"] == ["sex"]
+
+
+def test_groups_tiers():
+    # "Image if any high-risk criterion; otherwise observe if any medium-risk one."
+    calc = parse(
+        {
+            "id": "toy_tiers",
+            "name": "Toy tiers",
+            "citation": "None",
+            "items": [
+                {"id": i, "label": i, "type": "boolean", "kind": "finding"}
+                for i in ("h1", "h2", "m1", "m2", "m3")
+            ],
+            "components": [
+                {"id": i, "rule": "present", "item": i, "points": 1,
+                 "group": "high" if i.startswith("h") else "medium"}
+                for i in ("h1", "h2", "m1", "m2", "m3")
+            ],
+            "categories": [
+                {"name": "none"},
+                {"name": "observe", "group": "medium", "min": 1},
+                {"name": "image", "group": "high", "min": 1},
+            ],
+        }
+    )  # fmt: skip
+
+    def reference(v):
+        score = sum(v.values())
+        if v["h1"] or v["h2"]:
+            return score, "image"
+        return score, "observe" if v["m1"] or v["m2"] or v["m3"] else "none"
+
+    assert_matches_reference(calc, reference)
+    # One medium criterion present: the other medium ones no longer matter, the high ones do.
+    r = evaluate(calc, {"m1": "present"})
+    assert r["possible_categories"] == ["observe", "image"]
+    assert {d["item"] for d in r["decisive_unknowns"]} == {"h1", "h2"}
+    assert set(r["irrelevant_unknowns"]) == {"m2", "m3"}
+    # Three medium criteria score more than one high-risk one and still only "observe".
+    medium = {"h1": "absent", "h2": "absent", "m1": "present", "m2": "present", "m3": "present"}
+    assert evaluate(calc, medium)["category"] == "observe"
+    assert schema(calc)["components"][0]["group"] == "high"
+    assert schema(calc)["categories"][2]["when"] == "points in group 'high' >= 1"
+
+
+def test_groups_items_that_matter_only_together():
+    # "High if two or more major criteria": no single answer rules a category out, but each
+    # major criterion can change it; the minor one adds points and never matters.
+    calc = parse(
+        {
+            "id": "toy_two_major",
+            "name": "Toy two major criteria",
+            "citation": "None",
+            "items": [
+                {"id": i, "label": i, "type": "boolean", "kind": "finding"}
+                for i in ("a", "b", "c", "minor")
+            ],
+            "components": [
+                {"id": "a", "rule": "present", "item": "a", "points": 1, "group": "major"},
+                {"id": "b", "rule": "present", "item": "b", "points": 1, "group": "major"},
+                {"id": "c", "rule": "present", "item": "c", "points": 1, "group": "major"},
+                {"id": "minor", "rule": "present", "item": "minor", "points": 3},
+            ],
+            "categories": [{"name": "low"}, {"name": "high", "group": "major", "min": 2}],
+        }
+    )
+
+    def reference(v):
+        return v["a"] + v["b"] + v["c"] + 3 * v["minor"], (
+            "high" if v["a"] + v["b"] + v["c"] >= 2 else "low"
+        )
+
+    assert_matches_reference(calc, reference)
+    r = evaluate(calc, {})
+    assert r["decisive_unknowns"] == []
+    assert set(r["jointly_relevant_unknowns"]) == {"a", "b", "c"}
+    assert r["irrelevant_unknowns"] == ["minor"]

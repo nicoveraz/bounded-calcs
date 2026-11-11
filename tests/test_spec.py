@@ -100,6 +100,12 @@ MISTAKES = {
     "normal range that is not a pair": lambda d: d["items"][1].update(normal=[5]),
     "normal range reversed": lambda d: d["items"][1].update(normal=[9, 5]),
     "normal range as text": lambda d: d["items"][1].update(normal=["5", "9"]),
+    "category on a group no component has": lambda d: d["categories"][1].update(group="g"),
+    "group name not snake_case": lambda d: d["components"][0].update(group="High risk"),
+    "first category with a group": lambda d: (
+        d["components"][0].update(group="g"),
+        d["categories"][0].update(group="g"),
+    ),
 }
 
 
@@ -173,3 +179,23 @@ def test_invalid_any_of_rejected(fn):
     fn(d)
     with pytest.raises(SpecError):
         parse(d)
+
+
+def test_groups_parse_and_bounds_ascend_per_group():
+    d = broken(lambda d: d["components"][0].update(group="g"))
+    d["categories"] = [{"name": "low"}, {"name": "mid", "min": 2}, {"name": "top", "group": "g", "min": 1}]
+    calc = parse(d)
+    assert calc.groups == ("g",) and calc.categories[2].on == "g"
+    assert calc.category(5, [0]).name == "mid" and calc.category(1, [1]).name == "top"
+    # Two bounds on the same group must ascend, like two bounds on the total.
+    d["categories"] = [{"name": "low"}, {"name": "a", "group": "g", "min": 1},
+                       {"name": "b", "group": "g", "min": 1}]  # fmt: skip
+    with pytest.raises(SpecError, match="ascending"):
+        parse(d)
+
+
+def test_bare_on_is_not_a_key():
+    # YAML reads a bare `on` as true, so the category key is `group`.
+    text = yaml.safe_dump(BASE).replace("min: 2", "min: 2\n  on: g")
+    with pytest.raises(SpecError, match="unknown key"):
+        parse(yaml.safe_load(text))

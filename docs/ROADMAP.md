@@ -49,10 +49,10 @@ recommendations" is a valid answer.
 - **D4. Canadian CT Head Rule encoding ([#6](https://github.com/nicoveraz/bounded-calcs/issues/6)).** It has two tiers of criteria, so it needs the
   "tiered rules" encoding of the procedure, where the score is not clinically meaningful.
   Recommended: accept the encoding, with categories `no_criteria`, `medium_risk`, `high_risk`.
-  **Decided 2026-11-10: wait for an engine change that models tiers directly.** Until then
-  the PECARN rules (D5) use the encoding.
+  **Decided 2026-11-10: wait for an engine change that models tiers directly.** Done:
+  component groups; the PECARN rules (D5) use them since their version 2.
 - **D5. PECARN head injury rules ([#23](https://github.com/nicoveraz/bounded-calcs/issues/23)).** Decided 2026-11-10: the head injury
-  rules (Kuppermann 2009), as two calculators by age, with the tiered encoding.
+  rules (Kuppermann 2009), as two calculators by age (tiers as component groups).
 
 ## Next calculators
 
@@ -60,18 +60,19 @@ All citations below were checked in PubMed on 2026-11-10. "Structure hints" desc
 of the score so you know which rules to expect. They are **not** criteria: take every item,
 number and inequality from the source.
 
-### 1. CHA2DS2-VASc: `cha2ds2_vasc` — needs design, waits for #12 (D3) ([#5](https://github.com/nicoveraz/bounded-calcs/issues/5))
+### 1. CHA2DS2-VASc: `cha2ds2_vasc` — needs the source and a category decision (D3) ([#5](https://github.com/nicoveraz/bounded-calcs/issues/5))
 
 - Source: Lip GYH et al. Chest 2010;137(2):263-272. doi:10.1378/chest.09-1584.
   PMID 19762550. The abstract does not contain the points table; you need the full text.
 - Structure hints: age has two bands; one item is worth more than the others; sex is an
-  ordinal item with two levels (`levels` rule).
+  ordinal item with two levels (`levels` rule). Sex-dependent cut-offs fit the format now
+  (component groups); which categories to ship, and from which source, is still to decide.
 
-### 2. Canadian CT Head Rule: `canadian_ct_head` — needs design, waits for engine tiers (D4) ([#6](https://github.com/nicoveraz/bounded-calcs/issues/6))
+### 2. Canadian CT Head Rule: `canadian_ct_head` — ready once the full text is open (D4) ([#6](https://github.com/nicoveraz/bounded-calcs/issues/6))
 
 - Source: Stiell IG et al. Lancet 2001;357(9266):1391-1396.
   doi:10.1016/S0140-6736(00)04561-X. PMID 11356436.
-- Structure hints: five high-risk and two medium-risk criteria (tiered encoding). The rule
+- Structure hints: five high-risk and two medium-risk criteria (one group per tier). The rule
   only applies to a defined group of patients with minor head injury, with exclusions: gate
   in `purpose` and `notes`.
 - Known trap: the abstract writes two of the criteria with a strict inequality ("vomiting >2
@@ -97,8 +98,9 @@ These change the engine or the input format, so they are not for unattended work
 3. **Formula calculators ([#11](https://github.com/nicoveraz/bounded-calcs/issues/11))** (Cockcroft-Gault and similar). The score is continuous.
    calc-bounds bounds it exactly by evaluating the corners of the box formed by the inputs'
    allowed ranges (`bounds/__init__.py`), so this depends on item 2.
-4. **Categories that depend on an item ([#12](https://github.com/nicoveraz/bounded-calcs/issues/12))**, such as sex-specific cut-offs, and items
-   shared by two components.
+4. ~~Categories that depend on an item, and tiers~~ ([#12](https://github.com/nicoveraz/bounded-calcs/issues/12)): done with component
+   groups (a category can compare the points of one group). The PECARN rules use them. Still
+   open in #12: an item shared by two components.
 5. ~~Laboratory reference ranges for "normal"~~ ([#20](https://github.com/nicoveraz/bounded-calcs/issues/20)):
    done. Numeric items accept ranges, normal ranges may cross a threshold, and sites can set
    their own ranges (`--normal-ranges`). The urea default (2.5 to 8 mmol/L) crosses 7 on
