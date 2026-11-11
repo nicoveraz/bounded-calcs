@@ -13,9 +13,11 @@ from bounded_calcs.engine.bounds import (
     _domain,
     _reachable_points,
 )
+from bounded_calcs.engine.formula_bounds import formula_result
 from bounded_calcs.engine.inputs import (
     UNIT_NOT_STATED,
     _normalize,
+    _Normalized,
     _unit_factor,
     normal_ranges_in_use,
 )
@@ -37,34 +39,11 @@ def _describe_value(calc: Calculator, item: Item, v: Any) -> str:
     return band.describe(item.unit)
 
 
-def evaluate(
-    calc: Calculator,
-    inputs: dict[str, Any] | None = None,
-    *,
-    normal_ranges: Mapping[str, Any] | None = None,
-    units: Mapping[str, Any] | None = None,
-    require_units: bool = False,
-) -> dict[str, Any]:
-    """Evaluate a calculator on partial inputs.
 
-    `inputs` maps item id to a value. Items that are omitted, None, or "unknown" are unknown.
-    Boolean items take present/absent (or true/false); ordinal items take one of their
-    levels; numeric items take a number in the item's unit, a range {"min": x, "max": y}
-    (either bound may be left out), or "normal" when the item has a normal range.
-
-    `normal_ranges` maps item ids to a site's own [lo, hi] (for example its laboratory's
-    reference range), replacing the spec's default for "normal". Ids this calculator does not
-    have are ignored, so one mapping can serve every calculator.
-
-    `units` maps item ids to the unit the site reports that item in (one the item declares):
-    a number sent without a unit, or with the unit "not stated", is read in it and converted.
-    A unit sent with the value wins. With `require_units`, an item that declares other units
-    never takes a number alone: the caller sends the unit the source gives, or "not stated",
-    which is accepted only when the site has a unit for the item. Normal ranges and the
-    accepted range are always in the item's own unit.
-    """
-    ranges = normal_ranges_in_use(calc, normal_ranges)
-    norm = _normalize(calc, inputs, ranges, units, require_units)
+def _additive_result(
+    calc: Calculator, norm: _Normalized
+) -> tuple[dict[str, Any], list[dict[str, Any]], bool, list[str]]:
+    """The bounded result of an additive calculator: (result, decisive, settled, unknown ids)."""
     state = norm.state
     reached = _reachable_points(calc, state)
     scores = {p[0] for p in reached}
@@ -144,6 +123,42 @@ def evaluate(
         "irrelevant_unknowns": irrelevant,
         "components": components,
     }
+    return result, decisive, settled, unknown_ids
+
+
+def evaluate(
+    calc: Calculator,
+    inputs: dict[str, Any] | None = None,
+    *,
+    normal_ranges: Mapping[str, Any] | None = None,
+    units: Mapping[str, Any] | None = None,
+    require_units: bool = False,
+) -> dict[str, Any]:
+    """Evaluate a calculator on partial inputs.
+
+    `inputs` maps item id to a value. Items that are omitted, None, or "unknown" are unknown.
+    Boolean items take present/absent (or true/false); ordinal items take one of their
+    levels; numeric items take a number in the item's unit, a range {"min": x, "max": y}
+    (either bound may be left out), or "normal" when the item has a normal range.
+
+    `normal_ranges` maps item ids to a site's own [lo, hi] (for example its laboratory's
+    reference range), replacing the spec's default for "normal". Ids this calculator does not
+    have are ignored, so one mapping can serve every calculator.
+
+    `units` maps item ids to the unit the site reports that item in (one the item declares):
+    a number sent without a unit, or with the unit "not stated", is read in it and converted.
+    A unit sent with the value wins. With `require_units`, an item that declares other units
+    never takes a number alone: the caller sends the unit the source gives, or "not stated",
+    which is accepted only when the site has a unit for the item. Normal ranges and the
+    accepted range are always in the item's own unit.
+    """
+    ranges = normal_ranges_in_use(calc, normal_ranges)
+    norm = _normalize(calc, inputs, ranges, units, require_units)
+    if calc.formula is not None:
+        result, decisive, settled, unknown_ids = formula_result(calc, norm)
+    else:
+        result, decisive, settled, unknown_ids = _additive_result(calc, norm)
+    score_only = not calc.categories
     if settled and unknown_ids:
         what = "score" if score_only else "category"
         result["note"] = (
@@ -255,7 +270,7 @@ def schema(
             c["group"] = comp.group
         components.append(c)
 
-    return {
+    out: dict[str, Any] = {
         "id": calc.id,
         "name": calc.name,
         "version": calc.version,
@@ -288,3 +303,17 @@ def schema(
             "note."
         ),
     }
+    if calc.formula is not None:
+        f = calc.formula
+        out["formula"] = {
+            "expression": f.expression,
+            "unit": f.unit,
+            "decimals": f.decimals,
+            "monotonic": dict(f.monotonic),
+            "values": {i: {k: _fmt(v) for k, v in m.items()} for i, m in f.level_values.items()},
+            "note": (
+                "The result is this expression on the items (present = 1, absent = 0). An "
+                "unknown numeric item is bounded by the range the calculator accepts."
+            ),
+        }
+    return out

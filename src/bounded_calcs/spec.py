@@ -58,6 +58,10 @@ same key, `group: <name>`; its points still count in the total. Groups express r
                  component stays outside the group the category names
 The first category has no condition.
 
+Formula calculators: instead of `components`, a spec may have a `formula` (an expression on
+the items; see `formula.py`). Its numeric items must declare `accepts`, which bounds the
+result while an item is unknown. Categories, if any, are cut-offs on the result.
+
 Score-only calculators: `categories` may be left out when the source gives a score and no
 decision categories (a severity scale). The result is then the score: it is settled when the
 score is exact, and every unknown item that can change the score is a question.
@@ -81,6 +85,8 @@ from typing import Any
 
 import yaml
 
+from bounded_calcs.formula import Formula, FormulaError, parse_formula
+
 ITEM_TYPES = {"boolean", "ordinal", "numeric"}
 ITEM_KINDS = {"finding", "measurement", "judgment"}
 RULE_TYPES = {"present", "absent", "levels", "bands", "count", "any_of"}
@@ -91,7 +97,7 @@ _LEVEL = re.compile(r"^[a-z0-9][a-z0-9_]*$")
 
 _TOP_KEYS = {
     "id", "name", "version", "purpose", "citation", "references", "higher_is_higher_risk",
-    "notes", "items", "components", "categories",
+    "notes", "items", "components", "categories", "formula",
 }  # fmt: skip
 _ITEM_KEYS = {
     "id", "label", "type", "kind", "levels", "unit", "units", "normal", "accepts", "question",
@@ -208,6 +214,7 @@ class Calculator:
     categories: tuple[Category, ...]
     notes: tuple[str, ...]
     groups: tuple[str, ...] = ()  # component groups, in order of first use
+    formula: Formula | None = None  # set for a formula calculator, which has no components
 
     def category(self, score: float, group_points: Sequence[float] = ()) -> Category:
         """The category for a total score and, for calculators with groups, the points of
@@ -241,6 +248,8 @@ class Calculator:
 
     def numeric_bands(self, item_id: str) -> tuple[Band, ...]:
         """The bands a numeric item is resolved into. For an any_of condition: [met, not met]."""
+        if self.formula is not None:  # a formula uses the number itself: one band, everything
+            return (Band(None, None, 0.0),)
         comp = self.component_of(item_id)
         if comp.rule == "bands":
             return comp.bands
@@ -448,9 +457,25 @@ def parse(data: Any) -> Calculator:
             unit_labels=unit_labels,
         )
 
+    formula: Formula | None = None
+    if "formula" in data:
+        if "components" in data:
+            raise SpecError(f"{where}: a calculator has 'components' or a 'formula', not both")
+        try:
+            formula = parse_formula(
+                data["formula"],
+                where,
+                {i: it.accepts for i, it in items.items() if it.type == "numeric"},
+                {i: it.levels for i, it in items.items() if it.type == "ordinal"},
+                [i for i, it in items.items() if it.type == "boolean"],
+            )
+        except FormulaError as e:
+            raise SpecError(str(e)) from None
+
     components: list[Component] = []
     owner: dict[str, str] = {}
-    for raw in _list(_req(data, "components", where), where, "components"):
+    raw_components = [] if formula else _list(_req(data, "components", where), where, "components")
+    for raw in raw_components:
         if not isinstance(raw, dict):
             raise SpecError(f"{where}: each component must be a mapping, got {raw!r}")
         comp_id = _name(_req(raw, "id", where), f"{where} component", "id")
@@ -555,7 +580,7 @@ def parse(data: Any) -> Calculator:
         components.append(comp)
 
     for item in items.values():
-        if item.accepts is None:
+        if item.accepts is None or formula is not None:
             continue
         comp = next(c for c in components if item.id in c.items)
         bands = comp.bands if comp.rule == "bands" else (comp.conditions[item.id],)
@@ -566,7 +591,7 @@ def parse(data: Any) -> Calculator:
                     f"is outside 'accepts' {list(item.accepts)}"
                 )
 
-    unused = set(items) - set(owner)
+    unused = set() if formula else set(items) - set(owner)
     if unused:
         raise SpecError(f"{where}: items not used by any component: {sorted(unused)}")
 
@@ -634,6 +659,7 @@ def parse(data: Any) -> Calculator:
         categories=tuple(categories),
         notes=_texts(data.get("notes", []), where, "notes"),
         groups=groups,
+        formula=formula,
     )
     return calc
 

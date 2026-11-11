@@ -147,6 +147,16 @@ exact, `score_range` bounds it otherwise, and each unknown item that can change 
 with the range the score would have for each answer. No built-in calculator is score-only
 yet.
 
+**Formula calculators.** A spec can have a `formula` instead of point components: an
+expression on the items, such as `(a / b) / c`. A known input is used as it is; an unknown one
+is bounded by the range the calculator accepts, and a value known only as a range by that
+range. The spec declares whether the result rises or falls with each numeric input, and the
+loader checks it, so the result's lowest and highest values are at the ends of those ranges:
+`score_range` is exact, and every category it touches is listed as possible. For which unknown
+inputs matter, formulas are conservative: an input is called irrelevant only if it cannot move
+the result at all or the category is already settled. No built-in calculator uses a formula
+yet.
+
 **Units.** Every numeric item has one unit, and a number sent alone is read in it. An item
 can also declare other units with their conversion factor: CURB-65 urea is in mmol/L and
 takes `{"value": 25, "unit": "bun_mg/dL"}` or `{"value": 54, "unit": "urea_mg/dL"}`. The

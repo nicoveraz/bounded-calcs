@@ -68,6 +68,7 @@ Find each line of your table in this list. If a line matches nothing, stop and a
 | Tiers of criteria (any high-risk one, else any medium-risk one) | component groups: see "Groups" below | `pecarn_head_2plus.yaml` |
 | A cut-off that depends on an item (different thresholds for men and women) | component groups: see "Groups" below | `tests/test_engine.py`, toy_sex |
 | The source gives a score and no decision categories (a severity scale) | leave `categories` out: a score-only calculator | `tests/test_engine.py`, toy_scale |
+| The result is a formula on continuous values | `formula` instead of `components`: see "Formulas" below | `tests/test_formula.py`, RATIO |
 
 Never invent categories for a score-only source, and never take them from a website or a
 later paper unless the roadmap entry names that paper. In its test file the reference returns
@@ -77,8 +78,33 @@ It does **not** fit, and you must stop, if:
 
 - one item would feed two components (for example the same blood pressure in two criteria);
 - a category depends on something that groups of components cannot express (see "Groups");
-- the score is a formula on continuous values (creatinine clearance, for example);
+- the score mixes points and a formula (a number added to a sum of points), or its formula
+  does not move in one direction with some input (see "Formulas");
 - points are not whole or half numbers.
+
+### Formulas
+
+A formula calculator has no `components`. Its spec has the items and
+
+    formula:
+      expression: (a / b) / c
+      decimals: 2
+      monotonic: {a: increasing, b: decreasing, c: decreasing}
+
+- The expression uses item ids, numbers, `+ - * / **`, parentheses and `ln`, `log10`, `exp`,
+  `sqrt`, `min`, `max`. A yes/no item counts 1 or 0. An ordinal item needs
+  `values: {<item>: {<level>: <number>}}`.
+- Every numeric item needs `accepts`, from a source: it is what bounds the result while the
+  item is unknown, so a range that is too wide gives useless bounds and one that is too
+  narrow rejects real patients.
+- `monotonic` says, for every numeric item, whether the result rises or falls when the item
+  rises. The loader checks it and refuses a spec where it does not hold. If the formula goes
+  up and then down with some input, it does not fit: stop and ask.
+- Limits the source puts on an input ("values below 1 are set to 1") are written with `max`
+  and `min` in the expression.
+- `decimals` only if the source rounds the result; cut-offs are compared after rounding.
+- In the test file the reference returns `(result, category)` and is checked with
+  `assert_formula_matches_reference`. Write threshold tests on each side of every cut-off.
 
 ### Groups
 
