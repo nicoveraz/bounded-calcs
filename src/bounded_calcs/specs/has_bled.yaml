@@ -1,0 +1,99 @@
+id: has_bled
+name: HAS-BLED bleeding risk score
+version: 1
+purpose: >-
+  One-year risk of major bleeding in patients with atrial fibrillation: a score from 0 to 9.
+  The parts of the source that were read define no risk categories.
+citation: >-
+  Pisters R, Lane DA, Nieuwlaat R, de Vos CB, Crijns HJGM, Lip GYH. A novel user-friendly
+  score (HAS-BLED) to assess 1-year risk of major bleeding in patients with atrial
+  fibrillation: the Euro Heart Survey. Chest 2010;138(5):1093-1100. doi:10.1378/chest.10-0134.
+  PMID 20299623. Methods (definitions) and table 2 (points). [P]
+higher_is_higher_risk: true
+notes:
+  - "Points (Pisters 2010, table 2 and methods): hypertension 1; abnormal renal and liver
+    function 1 each; stroke 1; bleeding 1; labile INRs 1; elderly 1; drugs or alcohol 1 each.
+    Maximum 9."
+  - "Score only: no cut-off is defined here. One used elsewhere (for example 3 or more) must
+    come from a source before it is added."
+  - "Source read from a PDF supplied by the author on 2026-11-11: the methods paragraphs that
+    define the score and its terms, and table 2."
+
+items:
+  - id: uncontrolled_hypertension
+    label: Hypertension, uncontrolled (systolic blood pressure above 160 mmHg)
+    type: boolean
+    kind: finding
+  - id: abnormal_renal_function
+    label: >-
+      Abnormal kidney function: chronic dialysis, renal transplantation, or serum creatinine
+      of 200 micromol/L or more
+    type: boolean
+    kind: finding
+  - id: abnormal_liver_function
+    label: >-
+      Abnormal liver function: chronic hepatic disease (for example cirrhosis) or biochemical
+      evidence of significant hepatic derangement (for example bilirubin over 2 times the
+      upper limit of normal with AST, ALT or alkaline phosphatase over 3 times the upper limit)
+    type: boolean
+    kind: finding
+  - id: prior_stroke
+    label: Stroke (previous history, particularly lacunar)
+    type: boolean
+    kind: finding
+  - id: bleeding_history_or_predisposition
+    label: Bleeding history or predisposition (anaemia)
+    type: boolean
+    kind: finding
+    notes:
+      - "TODO(physician-review): the source says 'bleeding history or predisposition
+        (anemia)'. Reading chosen: prior major bleeding, or a predisposition to bleeding such
+        as anaemia. Which other predispositions count is not stated in the parts read."
+  - id: labile_inr
+    label: Labile INRs (time in therapeutic range below 60%)
+    type: boolean
+    kind: finding
+    notes:
+      - "TODO(physician-review): for a patient who is not on a vitamin K antagonist there is
+        no INR control to judge. Reading chosen: the caller sends absent in that case; if
+        nothing is sent the item stays unknown and the score is a range."
+  - id: age
+    label: Age
+    type: numeric
+    kind: measurement
+    unit: years
+    accepts: [18, 110]
+    notes:
+      - Accepted range taken from calc-bounds (docs/CALCULATOR_NOTES.md, parameter modelling choices).
+      - "TODO(physician-review): ages below 18 are rejected (18 to 110 years, the range the
+        other adult calculators use); the parts read state no age range."
+  - id: antiplatelet_or_nsaid
+    label: Concomitant antiplatelet agents or nonsteroidal anti-inflammatory drugs
+    type: boolean
+    kind: finding
+  - id: alcohol_excess
+    label: Alcohol excess
+    type: boolean
+    kind: finding
+    notes:
+      - "TODO(physician-review): the score says 'alcohol excess' without a number. The same
+        paper classified 8 or more units per week as 'ethanol abuse' when applying another
+        score. Reading chosen: alcohol excess as the clinician judges it, 8 or more units per
+        week if a number is needed."
+
+components:
+  - {id: hypertension, label: Hypertension, rule: present, item: uncontrolled_hypertension, points: 1}
+  - {id: abnormal_renal_function, label: Abnormal renal function, rule: present, item: abnormal_renal_function, points: 1}
+  - {id: abnormal_liver_function, label: Abnormal liver function, rule: present, item: abnormal_liver_function, points: 1}
+  - {id: stroke, label: Stroke, rule: present, item: prior_stroke, points: 1}
+  - {id: bleeding, label: Bleeding, rule: present, item: bleeding_history_or_predisposition, points: 1}
+  - {id: labile_inr, label: Labile INRs, rule: present, item: labile_inr, points: 1}
+  - id: elderly
+    label: Elderly (> 65 years)
+    rule: bands
+    item: age
+    bands:
+      - {gt: 65, points: 1}
+      - {points: 0}
+  - {id: drugs, label: Drugs, rule: present, item: antiplatelet_or_nsaid, points: 1}
+  - {id: alcohol, label: Alcohol, rule: present, item: alcohol_excess, points: 1}
