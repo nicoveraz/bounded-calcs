@@ -49,6 +49,7 @@ Python 3.11 or later. The MCP server can also run without installing anything fi
 | `pecarn_head_2plus` | PECARN head injury rule, 2 years and older (CT not recommended / observation versus CT / CT recommended) | Kuppermann et al., Lancet 2009. PMID 19758692 | [P] |
 | `wells_dvt` | Wells criteria for DVT, two-tier (unlikely / likely) | Wells et al., N Engl J Med 2003. PMID 14507948; NICE NG158 table 1 | [P], [S] |
 | `mcisaac` | McIsaac sore throat score (no culture or antibiotic / culture, treat if positive / culture, treat on clinical grounds) | McIsaac et al., CMAJ 1998. PMID 9475915 | [P] |
+| `nexus` | NEXUS cervical spine criteria (negative / positive) | Hoffman et al., N Engl J Med 2000. PMID 10891516 | [P] |
 
 Verified: **[P]** primary full text read, **[A]** abstract only, **[S]** secondary source
 (guideline or later paper). All four are ported from calc-bounds, whose readings the author

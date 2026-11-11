@@ -1,0 +1,78 @@
+id: nexus
+name: NEXUS cervical spine criteria
+version: 1
+purpose: >-
+  Identify patients with blunt trauma who have a low probability of cervical-spine injury and
+  do not need imaging. Negative only if all five criteria are met.
+citation: >-
+  Hoffman JR, Mower WR, Wolfson AB, Todd KH, Zucker MI. Validity of a set of clinical criteria
+  to rule out injury to the cervical spine in patients with blunt trauma. N Engl J Med
+  2000;343(2):94-99. doi:10.1056/NEJM200007133430203. PMID 10891516. Methods (the five
+  criteria, data collection) and discussion. [P]
+references:
+  - "Correction. N Engl J Med 2001;344(6):464. doi:10.1056/NEJM200102083440621. Fixes the
+    wording of the false-negative definition; the criteria are unchanged. [P]"
+higher_is_higher_risk: true
+notes:
+  - "Applies to patients with blunt trauma. Penetrating trauma was not eligible. Few children
+    were studied (2.5% of patients were 8 years old or younger). The calculator does not check
+    any of this."
+  - The score is the number of criteria not met. "negative" means all five criteria are met.
+  - "A criterion that cannot be assessed counts as not met (the source's example is tenderness
+    in a comatose patient): send that item as present, not as unknown."
+  - "A patient the physician calls clinically unstable is not low probability, whatever the
+    criteria (Hoffman 2000, methods)."
+  - "The source chose not to define the criteria precisely and left them to the clinician; it
+    adds that there may be reasons to image a patient who meets all five."
+
+items:
+  - id: midline_cervical_tenderness
+    label: Tenderness at the posterior midline of the cervical spine
+    type: boolean
+    kind: finding
+  - id: focal_neuro_deficit
+    label: Focal neurologic deficit
+    type: boolean
+    kind: finding
+  - id: abnormal_alertness
+    label: Level of alertness not normal
+    type: boolean
+    kind: judgment
+    question: Is the patient's level of alertness anything other than normal?
+    notes:
+      - "TODO(physician-review): kind is judgment because the source says the level of
+        alertness is best evaluated on the basis of clinical judgment, not uniform criteria.
+        The alternative is finding, so that a note stating the patient is alert and oriented
+        settles it."
+  - id: intoxication
+    label: Evidence of intoxication
+    type: boolean
+    kind: judgment
+    question: Is there any evidence of intoxication?
+    notes:
+      - "TODO(physician-review): kind is judgment because the source says evidence of
+        intoxication is best evaluated on the basis of clinical judgment, not laboratory
+        tests. The alternative is finding, so that a note can settle it."
+  - id: distracting_injury
+    label: >-
+      Clinically apparent, painful injury that might distract the patient from the pain of a
+      cervical-spine injury
+    type: boolean
+    kind: judgment
+    question: Is there a painful injury that could distract the patient from neck pain?
+
+components:
+  - {id: midline_cervical_tenderness, label: Posterior midline cervical tenderness, rule: present, item: midline_cervical_tenderness, points: 1}
+  - {id: focal_neuro_deficit, label: Focal neurologic deficit, rule: present, item: focal_neuro_deficit, points: 1}
+  - {id: abnormal_alertness, label: Alertness not normal, rule: present, item: abnormal_alertness, points: 1}
+  - {id: intoxication, label: Evidence of intoxication, rule: present, item: intoxication, points: 1}
+  - {id: distracting_injury, label: "Painful, distracting injury", rule: present, item: distracting_injury, points: 1}
+
+categories:
+  - name: negative
+    label: NEXUS negative (all five criteria met)
+    meaning: Low probability of cervical-spine injury; imaging is not required by the criteria.
+  - name: positive
+    label: NEXUS positive (at least one criterion not met)
+    meaning: Not low probability; cervical-spine imaging is indicated.
+    min: 1
