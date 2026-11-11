@@ -67,6 +67,11 @@ Find each line of your table in this list. If a line matches nothing, stop and a
 | Rule-out rule: negative only if every criterion is met | one point per criterion that is **not** met; categories `negative` and `positive` (`min: 1`) | `perc.yaml` |
 | Tiers of criteria (any high-risk one, else any medium-risk one) | component groups: see "Groups" below | `pecarn_head_2plus.yaml` |
 | A cut-off that depends on an item (different thresholds for men and women) | component groups: see "Groups" below | `tests/test_engine.py`, toy_sex |
+| The source gives a score and no decision categories (a severity scale) | leave `categories` out: a score-only calculator | `tests/test_engine.py`, toy_scale |
+
+Never invent categories for a score-only source, and never take them from a website or a
+later paper unless the roadmap entry names that paper. In its test file the reference returns
+`(score, None)`, and the sparse-note test asserts the score range instead of the categories.
 
 It does **not** fit, and you must stop, if:
 

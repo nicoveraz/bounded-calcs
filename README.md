@@ -141,6 +141,12 @@ Claude Desktop / Claude Code config:
 outside that range (an oxygen saturation of 0.97, an age of 16 in an adult score) is an error
 with an explanation, not a score.
 
+**Score-only calculators.** A scale whose source gives a score and no decision categories
+has no `categories` in its spec. The result is then the score: `settled` means the score is
+exact, `score_range` bounds it otherwise, and each unknown item that can change it is listed
+with the range the score would have for each answer. No built-in calculator is score-only
+yet.
+
 **Units.** Every numeric item has one unit, and a number sent alone is read in it. An item
 can also declare other units with their conversion factor: CURB-65 urea is in mmol/L and
 takes `{"value": 25, "unit": "bun_mg/dL"}` or `{"value": 54, "unit": "urea_mg/dL"}`. The
