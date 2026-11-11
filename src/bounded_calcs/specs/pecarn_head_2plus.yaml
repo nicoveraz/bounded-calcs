@@ -1,0 +1,109 @@
+id: pecarn_head_2plus
+name: PECARN head injury rule, children aged 2 years and older
+version: 1
+purpose: >-
+  Suggested CT decision after minor head trauma in children aged 2 to 17 years with GCS 14-15,
+  presenting within 24 h of the injury: CT recommended, observation versus CT, or CT not
+  recommended (very low risk of clinically important traumatic brain injury).
+citation: >-
+  Kuppermann N, Holmes JF, Dayan PS, et al. Identification of children at very low risk of
+  clinically-important brain injuries after head trauma: a prospective cohort study. Lancet
+  2009;374(9696):1160-1170. doi:10.1016/S0140-6736(09)61558-0. PMID 19758692. Figure 3B
+  (tiers), figure 2B, panel 1 and methods (definitions). [P]
+references:
+  - "Department of Error. Lancet 2014;383(9914):308. doi:10.1016/S0140-6736(14)60105-7.
+    Corrects the classification of injury mechanism for 394 patients; in the tree for children
+    aged 2 years and older the mechanism and basilar skull fracture nodes switch order, figure 3
+    numbers change slightly and the interpretation of the rules does not. [P]"
+higher_is_higher_risk: true
+notes:
+  - "Applies to children aged 2 to 17 years presenting within 24 h of head trauma with GCS
+    14-15. Excluded in the source: trivial mechanisms (ground-level falls, or walking or running
+    into stationary objects, with no signs or symptoms of head trauma other than scalp abrasions
+    and lacerations), penetrating trauma, known brain tumours, pre-existing neurological
+    disorders complicating assessment, and neuroimaging at an outside hospital before transfer.
+    Ventricular shunts, bleeding disorders and GCS below 14 were analysed separately. The
+    calculator does not check any of this."
+  - "Tiered rule (Kuppermann 2009, figure 3B): CT recommended if any high-risk criterion;
+    otherwise observation versus CT if any intermediate criterion; otherwise CT not
+    recommended. Encoded as 5 points per high-risk criterion and 1 point per intermediate one,
+    so the score is an encoding with no clinical meaning; read the category."
+  - "Observation versus CT is decided on other clinical factors (figure 3B): physician
+    experience, multiple versus isolated findings, worsening symptoms or signs after emergency
+    department observation, and parental preference."
+  - "CT not recommended is the PECARN rule negative (no predictor present); the other two
+    categories together are rule positive."
+  - "Source read from the copy of the 2009 article on pecarn.org, before the 2014 correction.
+    The tiers and definitions used here are not affected by that correction."
+
+items:
+  - id: gcs
+    label: Glasgow Coma Scale score (paediatric GCS for children aged 2 years or younger)
+    type: numeric
+    kind: measurement
+    unit: points
+  - id: other_ams_signs
+    label: >-
+      Other signs of altered mental status: agitation, somnolence, repetitive questioning, or
+      slow response to verbal communication
+    type: boolean
+    kind: finding
+  - id: basilar_skull_fracture_signs
+    label: >-
+      Signs of basilar skull fracture, such as retro-auricular bruising (Battle's sign),
+      periorbital bruising (raccoon eyes), haemotympanum, or cerebrospinal fluid otorrhoea or
+      rhinorrhoea
+    type: boolean
+    kind: finding
+  - id: loss_of_consciousness
+    label: History of loss of consciousness, known or suspected
+    type: boolean
+    kind: finding
+    notes:
+      - "REVIEWED(physician): figure 3B says history of LOC; figure 2B splits the node into no
+        versus yes or suspected. Suspected loss of consciousness counts as present (confirmed
+        by the author, an emergency physician, on 2026-11-10)."
+  - id: vomiting
+    label: History of vomiting
+    type: boolean
+    kind: finding
+    notes:
+      - Any vomiting counts; the number of episodes does not change the rule (figure 2B).
+  - id: severe_mechanism_2plus
+    label: >-
+      Severe mechanism of injury: motor vehicle crash with patient ejection, death of another
+      passenger, or rollover; pedestrian or bicyclist without helmet struck by a motorised
+      vehicle; fall of more than 1.5 m (5 feet); or head struck by a high-impact object
+    type: boolean
+    kind: finding
+    notes:
+      - "The fall height for children younger than 2 years is 0.9 m, so that calculator uses
+        another item (severe_mechanism_under2)."
+  - id: severe_headache
+    label: Severe headache (headache graded severe, that is intense, rather than mild or moderate)
+    type: boolean
+    kind: finding
+
+components:
+  - id: altered_mental_status
+    label: GCS 14 or other signs of altered mental status
+    rule: any_of
+    conditions:
+      - {item: gcs, lt: 15}
+      - {item: other_ams_signs}
+    points: 5
+  - {id: basilar_skull_fracture_signs, label: Signs of basilar skull fracture, rule: present, item: basilar_skull_fracture_signs, points: 5}
+  - {id: loss_of_consciousness, label: History of loss of consciousness, rule: present, item: loss_of_consciousness, points: 1}
+  - {id: vomiting, label: History of vomiting, rule: present, item: vomiting, points: 1}
+  - {id: severe_mechanism_2plus, label: Severe mechanism of injury, rule: present, item: severe_mechanism_2plus, points: 1}
+  - {id: severe_headache, label: Severe headache, rule: present, item: severe_headache, points: 1}
+
+categories:
+  - name: ct_not_recommended
+    label: CT not recommended (no PECARN predictor)
+  - name: observation_vs_ct
+    label: Observation versus CT on the basis of other clinical factors (intermediate criterion only)
+    min: 1
+  - name: ct_recommended
+    label: CT recommended (any high-risk criterion)
+    min: 5
