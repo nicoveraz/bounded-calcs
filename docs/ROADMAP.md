@@ -94,27 +94,23 @@ Central; **readable on the publisher's site** means the full article opened in t
 
 | Issue | Calculator | Fits the format? | Source |
 |---|---|---|---|
-| [#46](https://github.com/nicoveraz/bounded-calcs/issues/46) | Canadian Syncope Risk Score | yes (expected) | PMC |
-| [#47](https://github.com/nicoveraz/bounded-calcs/issues/47) | Modified Glasgow (Imrie) score | yes (expected) | PMC |
+| [#47](https://github.com/nicoveraz/bounded-calcs/issues/47) | Modified Glasgow (Imrie) score | yes (expected) | PMC copy is a scan without text: needs a PDF or reading page images |
 | [#47](https://github.com/nicoveraz/bounded-calcs/issues/47) | Ranson's criteria | partly: criteria that are a change between two times; cut-offs by aetiology | needs PDF; version to choose |
-| [#37](https://github.com/nicoveraz/bounded-calcs/issues/37) | sPESI | yes (expected) | readable on the publisher's site |
 | [#37](https://github.com/nicoveraz/bounded-calcs/issues/37) | PESI | no: age is added as points (a formula inside a sum) | PMC |
 | [#45](https://github.com/nicoveraz/bounded-calcs/issues/45) | San Francisco Syncope Rule | yes (expected) | needs PDF |
-| [#39](https://github.com/nicoveraz/bounded-calcs/issues/39) | BISAP | yes if SIRS fits as a count | readable on the publisher's site |
 | [#29](https://github.com/nicoveraz/bounded-calcs/issues/29) | HAS-BLED | yes (expected) | needs PDF |
 | [#30](https://github.com/nicoveraz/bounded-calcs/issues/30) | Cincinnati Prehospital Stroke Scale | yes; can be built from the abstract as [A] | needs PDF for [P] |
 | [#31](https://github.com/nicoveraz/bounded-calcs/issues/31) | NIH Stroke Scale | score-only (done); version to choose | original 1989 scale readable on the publisher's site; current form to locate |
 | [#40](https://github.com/nicoveraz/bounded-calcs/issues/40) | Killip classification | probably, with groups | needs PDF |
 | [#43](https://github.com/nicoveraz/bounded-calcs/issues/43) | West Haven criteria | probably, with groups; version to choose | 2014 guideline readable on the publisher's site; 1977 original needs PDF |
 | [#36](https://github.com/nicoveraz/bounded-calcs/issues/36) | Glasgow-Blatchford | no if points depend on sex and haemoglobin together | needs PDF |
-| [#42](https://github.com/nicoveraz/bounded-calcs/issues/42) | MELD-Na | formula (done); version to choose | PMC |
 | [#41](https://github.com/nicoveraz/bounded-calcs/issues/41) | ROX index | formula (done) | needs PDF |
 | [#44](https://github.com/nicoveraz/bounded-calcs/issues/44) | AKIN staging | no: highest of several criteria, from ratios | PMC |
 | [#38](https://github.com/nicoveraz/bounded-calcs/issues/38) | KDIGO AKI staging | no: the same | guideline free on kdigo.org |
 | [#48](https://github.com/nicoveraz/bounded-calcs/issues/48) | Rule of nines, Lund and Browder, Parkland | Parkland is a formula (done); burn size feeds it (not supported); output is a volume to infuse, which needs Nicolás's explicit decision | needs PDFs |
 
-Suggested order: the ones that fit and whose paper can be opened (Canadian Syncope, Imrie,
-sPESI, BISAP), then MELD-Na as the first real formula calculator once its version is chosen.
+Built on 2026-11-11 from this list: Canadian Syncope, sPESI, BISAP and MELD-Na (2008
+formula; the version is still Nicolás's to confirm).
 The four papers now readable for #7 (van Belle 2006, Kline 2004 and 2008, Backus 2013) can
 turn those `[A]` tags into `[P]`.
 
@@ -169,13 +165,14 @@ references), not only the abstract. Nothing was downloaded.
 | HEART ([#7](https://github.com/nicoveraz/bounded-calcs/issues/7)) | Backus BE et al. Crit Pathw Cardiol 2010;9(3):164-169 | PMID 20802272 · doi:10.1097/HPC.0b013e3181ec36d8 | abstract only (Ovid) |
 | MELD (only if plain MELD is wanted) | Kamath PS et al. Hepatology 2001;33(2):464-470 | PMID 11172350 · doi:10.1053/jhep.2001.22172 | abstract only |
 
-**Not tried in the browser (no DOI to follow)**
+**No readable copy found (tried from the PubMed record on 2026-11-11)**
 
-| For | Paper | Identifiers |
+| For | Paper | Identifiers / what was found |
 |---|---|---|
-| Ranson | Ranson JH et al. Surg Gynecol Obstet 1974;139(1):69-81 | PMID 4834279 |
-| West Haven (original) | Conn HO et al. Gastroenterology 1977;72(4 Pt 1):573-583 | PMID 14049 |
-| Wells PE ([#7](https://github.com/nicoveraz/bounded-calcs/issues/7)) | Wells PS et al. Thromb Haemost 2000;83(3):416-420 | PMID 10744147 |
+| Ranson | Ranson JH et al. Surg Gynecol Obstet 1974;139(1):69-81 | PMID 4834279 · PubMed lists no full-text link |
+| West Haven (original) | Conn HO et al. Gastroenterology 1977;72(4 Pt 1):573-583 | PMID 14049 · gastrojournal.org marks it open access, but the page carries no article text (a scan) |
+| Wells PE ([#7](https://github.com/nicoveraz/bounded-calcs/issues/7)) | Wells PS et al. Thromb Haemost 2000;83(3):416-420 | PMID 10744147 · PubMed lists no full-text link |
+| Modified Glasgow (Imrie) | Blamey SL et al. Gut 1984;25(12):1340-1346 | PMID 6510766 · PMC1420197 is a scan with no text; it has to be read as page images or from a PDF |
 | Lund and Browder chart | Lund CC, Browder NC (1944) | not in PubMed search yet |
 | NIHSS, current form | the scale as published by NINDS, if that version is chosen ([#31](https://github.com/nicoveraz/bounded-calcs/issues/31)) | to locate |
 
