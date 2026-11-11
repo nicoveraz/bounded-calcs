@@ -27,6 +27,7 @@ message with `Closes #N`.
 | `pecarn_head_2plus` | PECARN head injury rule, 2 years and older | [P] Kuppermann 2009 and 2014 erratum | open readings confirmed 2026-11-10 | 0 |
 | `wells_dvt` | Wells criteria for DVT, two-tier | [P] Wells 2003; [S] NICE NG158 table 1 | not yet reviewed | 0 |
 | `mcisaac` | McIsaac sore throat score | [P] McIsaac 1998 | not yet reviewed | 1 |
+| `nexus` | NEXUS cervical spine criteria | [P] Hoffman 2000 and its correction | not yet reviewed | 2 |
 
 "Reviewed (calc-bounds)" means the readings were accepted by the author, an emergency
 physician, as recorded in `docs/CALCULATOR_NOTES.md` of `nicoveraz/calc-bounds`.
@@ -59,26 +60,14 @@ All citations below were checked in PubMed on 2026-11-10. "Structure hints" desc
 of the score so you know which rules to expect. They are **not** criteria: take every item,
 number and inequality from the source.
 
-### 1. NEXUS cervical spine criteria: `nexus` — ready ([#2](https://github.com/nicoveraz/bounded-calcs/issues/2))
-
-- Source: Hoffman JR et al. N Engl J Med 2000;343(2):94-99.
-  doi:10.1056/NEJM200007133430203. PMID 10891516. The abstract lists the five criteria; the
-  definitions of each criterion are in the full text.
-- Structure hints: a rule-out rule like `perc.yaml`: one point per criterion that is not met,
-  categories `negative` (0) and `positive` (`min: 1`). Name each item for the finding, not
-  for its absence. At least one criterion is a clinician judgment.
-- If you can only open the abstract, tag it [A] and add a `TODO(physician-review):` note on
-  every item whose definition you could not read.
-- Applies to blunt trauma patients: put the gate in `purpose` and `notes`.
-
-### 2. CHA2DS2-VASc: `cha2ds2_vasc` — needs design, waits for #12 (D3) ([#5](https://github.com/nicoveraz/bounded-calcs/issues/5))
+### 1. CHA2DS2-VASc: `cha2ds2_vasc` — needs design, waits for #12 (D3) ([#5](https://github.com/nicoveraz/bounded-calcs/issues/5))
 
 - Source: Lip GYH et al. Chest 2010;137(2):263-272. doi:10.1378/chest.09-1584.
   PMID 19762550. The abstract does not contain the points table; you need the full text.
 - Structure hints: age has two bands; one item is worth more than the others; sex is an
   ordinal item with two levels (`levels` rule).
 
-### 3. Canadian CT Head Rule: `canadian_ct_head` — needs design, waits for engine tiers (D4) ([#6](https://github.com/nicoveraz/bounded-calcs/issues/6))
+### 2. Canadian CT Head Rule: `canadian_ct_head` — needs design, waits for engine tiers (D4) ([#6](https://github.com/nicoveraz/bounded-calcs/issues/6))
 
 - Source: Stiell IG et al. Lancet 2001;357(9266):1391-1396.
   doi:10.1016/S0140-6736(00)04561-X. PMID 11356436.
