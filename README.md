@@ -265,7 +265,8 @@ input.
 
 The engine is a small package with one module per job (`engine/inputs.py`, `engine/rules/`
 with one module per scoring rule, `engine/bounds.py`, `engine/formula_bounds.py`,
-`engine/result.py`), so a new rule is a new module and not an edit to the others.
+`engine/result.py`). Each rule module also reads its own part of the YAML, so a new rule is
+one new module and not an edit to the others.
 
 ## Development
 

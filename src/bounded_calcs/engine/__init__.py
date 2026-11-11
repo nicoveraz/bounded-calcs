@@ -14,8 +14,8 @@ Modules, each with one job:
     result.py   evaluate() and schema(): the output a caller sees
     state.py    the state's type and small shared helpers
 
-To add a scoring rule, add a module under `rules/` (see its docstring) and its parsing in
-`spec.py`; the other modules do not change. Everything a caller used to import from `bounded_calcs.engine` is still here.
+To add a scoring rule, add one module under `rules/` (see its docstring): it reads its own
+YAML keys and computes its own points. The other modules do not change. Everything a caller used to import from `bounded_calcs.engine` is still here.
 """
 
 from bounded_calcs.engine.inputs import (

@@ -258,3 +258,64 @@ def test_a_unit_may_carry_a_label():
     assert calc.items["b"].units == {"x": 4} and calc.items["b"].unit_labels == {"x": "x per litre"}
     with pytest.raises(SpecError):  # a label does not replace the factor
         parse(broken(lambda d: d["items"][1].update(units={"x": {"label": "x per litre"}})))
+
+
+# --- a damaged spec is always a SpecError, never a crash ---------------------------------------
+
+
+def test_values_of_the_wrong_shape_are_spec_errors_not_crashes():
+    # A mapping where a word is expected used to raise TypeError (it cannot be looked up in a
+    # set); an item with 'accepts' that no component uses used to raise StopIteration.
+    for change in (
+        lambda d: d["items"][0].update(type={"a": 1}),
+        lambda d: d["items"][0].update(kind=["finding"]),
+        lambda d: d["components"][0].update(rule={"a": 1}),
+        lambda d: d["components"][0].update(item=["a"]),
+        lambda d: d["categories"][1].update(group=["g"]),
+        lambda d: d["items"].append(
+            {"id": "spare", "label": "spare", "type": "numeric", "kind": "measurement",
+             "unit": "x", "accepts": [0, 1]}
+        ),
+    ):  # fmt: skip
+        with pytest.raises(SpecError):
+            parse(broken(change))
+
+
+def test_randomly_damaged_builtin_specs_fail_cleanly():
+    import copy
+    import random
+    from importlib import resources
+
+    import yaml
+
+    docs = [
+        yaml.safe_load(f.read_text(encoding="utf-8"))
+        for f in resources.files("bounded_calcs.specs").iterdir()
+        if f.name.endswith(".yaml")
+    ]
+    junk = [None, True, 0, -1, 2.5, "x", "", [], {}, ["a"], {"a": 1}, "unknown"]
+    rng = random.Random(11)
+
+    def paths(d, pre=()):
+        if isinstance(d, dict):
+            keys = list(d)
+        elif isinstance(d, list):
+            keys = list(range(len(d)))
+        else:
+            return []
+        return [p for k in keys for p in ([pre + (k,)] + paths(d[k], pre + (k,)))]
+
+    for _ in range(600):
+        d = copy.deepcopy(rng.choice(docs))
+        path = rng.choice(paths(d))
+        cur = d
+        for k in path[:-1]:
+            cur = cur[k]
+        if rng.random() < 0.3:
+            del cur[path[-1]]
+        else:
+            cur[path[-1]] = copy.deepcopy(rng.choice(junk))
+        try:
+            parse(d)
+        except SpecError:
+            pass  # the only acceptable failure; any other exception fails this test

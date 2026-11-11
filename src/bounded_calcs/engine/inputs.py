@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from bounded_calcs.engine.state import INF, State, _bound
-from bounded_calcs.spec import Calculator, Item
+from bounded_calcs.model import Calculator, Item
 
 UNKNOWN_WORDS = {"unknown", "not_mentioned", "not mentioned", "unk", ""}
 

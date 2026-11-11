@@ -10,7 +10,7 @@ from typing import Any
 
 from bounded_calcs.engine.rules import component_points, flip_pairs
 from bounded_calcs.engine.state import Points, State
-from bounded_calcs.spec import Calculator, Component, Item
+from bounded_calcs.model import Calculator, Component, Item
 
 
 def _domain(calc: Calculator, item: Item, state: State) -> list[Any]:

@@ -206,7 +206,8 @@ These change the engine or the input format, so they are not for unattended work
 
 The engine is now a package, `engine/`, with one module per job and one per scoring rule
 (see CLAUDE.md, Layout), so each of these is an addition and not an edit of one large file.
-`spec.py` is not split the same way yet: it still reads every rule in one file.
+The loader is split the same way: `model.py` holds the data model, each rule module reads
+its own YAML keys, and `spec.py` reads the rest. A new rule is one module.
 
 ## Distribution ([#13](https://github.com/nicoveraz/bounded-calcs/issues/13))
 
