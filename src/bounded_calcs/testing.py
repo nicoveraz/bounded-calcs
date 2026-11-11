@@ -352,3 +352,107 @@ def _component_patterns(
         return
     for combo in itertools.product(*([*domains[i], None] for i in comp.items)):
         yield dict(zip(comp.items, combo))
+
+
+def assert_formula_matches_reference(
+    calc: Calculator,
+    reference: Reference,
+    *,
+    points: int = 4,
+    trials: int = 150,
+    seed: int = 0,
+) -> dict[str, int]:
+    """Compare a formula calculator with an independent `reference` (see module docstring).
+
+    `reference(values)` returns `(result, category_name)`, or `(result, None)` for a
+    score-only calculator. Numeric items are tried at `points` evenly spaced values of the
+    range the calculator accepts, both ends included.
+
+    1. Complete inputs: result and category must be equal on the whole grid.
+    2. Partial inputs: for random sets of unknown items, the engine's result range must equal
+       the lowest and highest reference result over the grid, every category the reference
+       reaches must be among the engine's possible categories, and no item the engine calls
+       irrelevant may change the reference's result or category.
+    """
+    from bounded_calcs.formula import grid
+
+    if calc.formula is None:
+        raise ValueError(f"{calc.id}: not a formula calculator; use assert_matches_reference")
+    names = [c.name for c in calc.categories]
+    domains: dict[str, list[Any]] = {}
+    for iid, item in calc.items.items():
+        if item.type == "boolean":
+            domains[iid] = [True, False]
+        elif item.type == "ordinal":
+            domains[iid] = list(item.levels)
+        else:
+            assert item.accepts is not None
+            domains[iid] = grid(item.accepts[0], item.accepts[1], points)
+    ids = list(domains)
+
+    def close(a: float, b: float) -> bool:
+        return math.isclose(a, b, rel_tol=1e-9, abs_tol=1e-9)
+
+    def ref(values: dict[str, Any]) -> tuple[float, str | None]:
+        out = reference(values)
+        ok = isinstance(out, tuple) and len(out) == 2
+        if not (ok and (out[1] in names if names else out[1] is None)):
+            raise AssertionError(f"{calc.id}: reference returned {out!r} for {values}")
+        return out
+
+    n_complete = 0
+    for combo in itertools.product(*domains.values()):
+        values = dict(zip(ids, combo))
+        result = evaluate(calc, values)
+        exp_score, exp_category = ref(values)
+        if not (
+            result["score"] is not None
+            and close(result["score"], exp_score)
+            and result["category"] == exp_category
+        ):
+            raise AssertionError(
+                _show(
+                    "spec and reference disagree on a complete input",
+                    calc,
+                    values,
+                    [
+                        f"spec:      result {result['score']}, category {result['category']}",
+                        f"reference: result {exp_score}, category {exp_category}",
+                    ],
+                )
+            )
+        n_complete += 1
+
+    rng = random.Random(seed)
+    n_partial = 0
+    for _ in range(trials):
+        unknown = rng.sample(ids, rng.randint(1, len(ids)))
+        known = {i: rng.choice(domains[i]) for i in ids if i not in unknown}
+        combos = list(itertools.product(*(domains[i] for i in unknown)))
+        outs = [ref({**known, **dict(zip(unknown, c))}) for c in combos]
+        result = evaluate(calc, known)
+        lo, hi = min(s for s, _ in outs), max(s for s, _ in outs)
+        wrong = []
+        if not (close(result["score_range"][0], lo) and close(result["score_range"][1], hi)):
+            wrong.append(f"score_range: engine {result['score_range']}, reference [{lo}, {hi}]")
+        missing = {c for _, c in outs if c is not None} - set(result["possible_categories"])
+        if missing:
+            wrong.append(f"categories the reference reaches but the engine omits: {missing}")
+        for iid in result["irrelevant_unknowns"]:
+            pos = unknown.index(iid)
+            by_rest: dict[tuple[Any, ...], set[Any]] = {}
+            for c, (s, cat) in zip(combos, outs):
+                by_rest.setdefault(c[:pos] + c[pos + 1 :], set()).add(cat if names else s)
+            if any(len(v) > 1 for v in by_rest.values()):
+                wrong.append(f"'{iid}' is called irrelevant but changes the reference's outcome")
+        if wrong:
+            raise AssertionError(
+                _show(
+                    f"engine and reference disagree on a partial input (unknown: {unknown})",
+                    calc,
+                    known,
+                    wrong,
+                )
+            )
+        n_partial += 1
+    return {"complete_inputs": n_complete, "partial_inputs": n_partial}

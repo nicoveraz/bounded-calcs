@@ -57,8 +57,8 @@ literally. When they do not cover a situation, stop and ask; do not improvise.
 - The score exists in versions (two-tier or three-tier, original or modified) and the roadmap
   does not say which one.
 - The calculator needs something the format lacks: an item used by two components,
-  categories that neither the total score nor a group of components can express, a continuous
-  formula, or points that are not whole or half numbers.
+  categories that neither the total score nor a group of components can express, a formula
+  that is not monotonic or is mixed with points, or points that are not whole or half numbers.
 - A test you did not write fails, or a fix seems to need a change in `src/` outside `specs/`.
 - Sources disagree in a way that changes a category for some patient and you cannot tell
   which reading the roadmap intends.
@@ -82,10 +82,12 @@ Nothing else. The MCP server and the generic tests pick up new specs automatical
 ```
 src/bounded_calcs/
   spec.py         YAML format, strict validation (rejects typos, bad band order, bad YAML text)
+  formula.py      formula calculators: the expression language and its checks (no eval)
   engine/         the bounding engine, one job per module
     inputs.py       what a caller may send (words, numbers, ranges, units) -> the engine's state
     rules/          one module per scoring rule (present, levels, bands, any_of, count)
     bounds.py       reachable scores and categories; which unknown items can change them
+    formula_bounds.py  the same for formula calculators (result range from the input ranges)
     result.py       evaluate() and schema(): the output fields (public API)
     state.py        the state's type and shared helpers
   testing.py      assert_matches_reference(): spec and engine against an independent reference
@@ -95,7 +97,7 @@ src/bounded_calcs/
 tests/
   calculators/    one test file per calculator (copy test_curb65.py for a new one)
   test_builtin_specs.py   rules every built-in calculator must satisfy
-  test_spec.py, test_engine.py, test_testing.py, test_mcp.py
+  test_spec.py, test_engine.py, test_formula.py, test_testing.py, test_mcp.py
 docs/
   ADDING_A_CALCULATOR.md  the procedure
   ROADMAP.md              what is built, what is next, open decisions

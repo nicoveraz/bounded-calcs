@@ -33,6 +33,7 @@ class _Normalized:
     known_ranges: dict[str, tuple[float, float]]
     normal_assumed: dict[str, tuple[float, float, str]]
     converted: dict[str, dict[str, Any]]
+    exact: dict[str, float]  # numeric items given as one number, in the item's unit
 
 
 def _check_range(where: str, value: Any) -> tuple[float, float]:
@@ -147,6 +148,7 @@ def _normalize(
     known_ranges: dict[str, tuple[float, float]] = {}
     normal_assumed: dict[str, tuple[float, float, str]] = {}
     converted: dict[str, dict[str, Any]] = {}
+    exact: dict[str, float] = {}
     for iid, item in calc.items.items():
         v = inputs.get(iid)
         if v is None or (isinstance(v, str) and v.strip().lower() in UNKNOWN_WORDS):
@@ -281,8 +283,9 @@ def _normalize(
                 raise InputError(hint)
             x = accepted(x * factor)
             state[iid] = _bands_touched(calc, iid, x, x)
+            exact[iid] = x
             if factor != 1.0:
                 converted[iid] = {"given": given, "value": round(x, 6), "unit": item.unit}
                 if read_as:
                     converted[iid]["read_as"] = f"{read_as} (site unit)"
-    return _Normalized(state, known_ranges, normal_assumed, converted)
+    return _Normalized(state, known_ranges, normal_assumed, converted, exact)

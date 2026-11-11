@@ -96,7 +96,7 @@ These change the engine or the input format, so they are not for unattended work
 2. ~~Plausible ranges for numeric items~~ ([#10](https://github.com/nicoveraz/bounded-calcs/issues/10)): done. A numeric item can declare
    `accepts: [lo, hi]`; a value outside it is an input error. The adult calculators use the
    ranges of calc-bounds. `gcs` and the McIsaac `age` have none yet (no source for a range).
-3. **Formula calculators ([#11](https://github.com/nicoveraz/bounded-calcs/issues/11))** (Cockcroft-Gault and similar). The score is continuous.
+3. ~~Formula calculators~~ ([#11](https://github.com/nicoveraz/bounded-calcs/issues/11)): done as a separate kind of calculator (`formula` instead of `components`), for formulas that move in one direction with each input. Not covered: a formula inside a sum of points (PESI's age), and non-monotonic formulas. Earlier note: the score is continuous.
    calc-bounds bounds it exactly by evaluating the corners of the box formed by the inputs'
    allowed ranges (`bounds/__init__.py`), so this depends on item 2.
 4. ~~Categories that depend on an item, and tiers~~ ([#12](https://github.com/nicoveraz/bounded-calcs/issues/12)): done with component
