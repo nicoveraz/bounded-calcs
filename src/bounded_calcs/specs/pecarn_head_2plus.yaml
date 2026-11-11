@@ -1,6 +1,6 @@
 id: pecarn_head_2plus
 name: PECARN head injury rule, children aged 2 years and older
-version: 1
+version: 2
 purpose: >-
   Suggested CT decision after minor head trauma in children aged 2 to 17 years with GCS 14-15,
   presenting within 24 h of the injury: CT recommended, observation versus CT, or CT not
@@ -26,8 +26,8 @@ notes:
     calculator does not check any of this."
   - "Tiered rule (Kuppermann 2009, figure 3B): CT recommended if any high-risk criterion;
     otherwise observation versus CT if any intermediate criterion; otherwise CT not
-    recommended. Encoded as 5 points per high-risk criterion and 1 point per intermediate one,
-    so the score is an encoding with no clinical meaning; read the category."
+    recommended. The score is the number of criteria present (0 to 6); the category depends
+    on which tier they belong to, not on the score."
   - "Observation versus CT is decided on other clinical factors (figure 3B): physician
     experience, multiple versus isolated findings, worsening symptoms or signs after emergency
     department observation, and parental preference."
@@ -91,19 +91,22 @@ components:
     conditions:
       - {item: gcs, lt: 15}
       - {item: other_ams_signs}
-    points: 5
-  - {id: basilar_skull_fracture_signs, label: Signs of basilar skull fracture, rule: present, item: basilar_skull_fracture_signs, points: 5}
-  - {id: loss_of_consciousness, label: History of loss of consciousness, rule: present, item: loss_of_consciousness, points: 1}
-  - {id: vomiting, label: History of vomiting, rule: present, item: vomiting, points: 1}
-  - {id: severe_mechanism_2plus, label: Severe mechanism of injury, rule: present, item: severe_mechanism_2plus, points: 1}
-  - {id: severe_headache, label: Severe headache, rule: present, item: severe_headache, points: 1}
+    points: 1
+    group: high_risk
+  - {id: basilar_skull_fracture_signs, label: Signs of basilar skull fracture, rule: present, item: basilar_skull_fracture_signs, points: 1, group: high_risk}
+  - {id: loss_of_consciousness, label: History of loss of consciousness, rule: present, item: loss_of_consciousness, points: 1, group: intermediate}
+  - {id: vomiting, label: History of vomiting, rule: present, item: vomiting, points: 1, group: intermediate}
+  - {id: severe_mechanism_2plus, label: Severe mechanism of injury, rule: present, item: severe_mechanism_2plus, points: 1, group: intermediate}
+  - {id: severe_headache, label: Severe headache, rule: present, item: severe_headache, points: 1, group: intermediate}
 
 categories:
   - name: ct_not_recommended
     label: CT not recommended (no PECARN predictor)
   - name: observation_vs_ct
     label: Observation versus CT on the basis of other clinical factors (intermediate criterion only)
+    group: intermediate
     min: 1
   - name: ct_recommended
     label: CT recommended (any high-risk criterion)
-    min: 5
+    group: high_risk
+    min: 1

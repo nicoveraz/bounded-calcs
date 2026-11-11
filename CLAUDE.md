@@ -57,8 +57,8 @@ literally. When they do not cover a situation, stop and ask; do not improvise.
 - The score exists in versions (two-tier or three-tier, original or modified) and the roadmap
   does not say which one.
 - The calculator needs something the format lacks: an item used by two components,
-  categories that depend on anything other than the total score, a continuous formula, or
-  points that are not whole or half numbers.
+  categories that neither the total score nor a group of components can express, a continuous
+  formula, or points that are not whole or half numbers.
 - A test you did not write fails, or a fix seems to need a change in `src/` outside `specs/`.
 - Sources disagree in a way that changes a category for some patient and you cannot tell
   which reading the roadmap intends.

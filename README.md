@@ -191,7 +191,9 @@ assert_matches_reference(load_file("curb65.yaml"), reference)
 ## How it works
 
 Components are independent, so the reachable scores are exactly the sumset of each
-component's reachable points; there is no sampling and no LLM in the loop. An unknown item is
+component's reachable points; there is no sampling and no LLM in the loop. Categories compare
+the total with cut-offs or, for rules a total cannot express (tiers of criteria, a cut-off
+that differs by sex), the points of a group of components; the bounds stay exact. An unknown item is
 decisive if some value of it removes at least one category from the possible set, and
 jointly relevant if it is not decisive but, for some values of the other unknowns, changing it
 changes the category. Whenever the result is not settled, at least one unknown is decisive or

@@ -65,23 +65,41 @@ Find each line of your table in this list. If a line matches nothing, stop and a
 | Number of risk factors: 0, 1-2, 3 or more | `count` | `heart.yaml`, risk_factors |
 | "A or B" earns the point once | `any_of` | `curb65.yaml`, blood_pressure |
 | Rule-out rule: negative only if every criterion is met | one point per criterion that is **not** met; categories `negative` and `positive` (`min: 1`) | `perc.yaml` |
-| Two tiers of criteria (any high-risk one, else any medium-risk one) | see "Tiered rules" below | none yet |
+| Tiers of criteria (any high-risk one, else any medium-risk one) | component groups: see "Groups" below | `pecarn_head_2plus.yaml` |
+| A cut-off that depends on an item (different thresholds for men and women) | component groups: see "Groups" below | `tests/test_engine.py`, toy_sex |
 
 It does **not** fit, and you must stop, if:
 
 - one item would feed two components (for example the same blood pressure in two criteria);
-- a category depends on something other than the total (for example different cut-offs for
-  men and women);
+- a category depends on something that groups of components cannot express (see "Groups");
 - the score is a formula on continuous values (creatinine clearance, for example);
 - points are not whole or half numbers.
 
-### Tiered rules
+### Groups
 
-For a rule of the form "category A if any high-risk criterion, otherwise category B if any
-medium-risk criterion, otherwise category C": give each medium-risk item 1 point and each
-high-risk item N points, where N is the number of medium-risk items plus 1. Categories: C
-first (no bound), then B with `min: 1`, then A with `min: N`. State in the spec `notes` that
-the score is an encoding with no clinical meaning.
+Categories normally compare the total score with a cut-off. When the source decides the
+category another way, put components in groups and let a category compare the points of one
+group. A fragment (the full skeleton is in step 5):
+
+    components:
+      - {id: a, rule: present, item: a, points: 1, group: high_risk}
+      - {id: b, rule: present, item: b, points: 1, group: medium_risk}
+    categories:                      # lowest first; the LAST category whose condition holds applies
+      - name: no_criteria
+      - {name: medium_risk, group: medium_risk, min: 1}
+      - {name: high_risk, group: high_risk, min: 1}
+
+- **Tiers** ("category A if any high-risk criterion, otherwise B if any medium-risk one"):
+  one group per tier, 1 point per criterion, and each category names its group with `min: 1`.
+  The score is then the number of criteria present; say in `notes` that the category depends
+  on the tier, not on the score.
+- **A cut-off that depends on an item** (2 for men, 3 for women, where being a woman scores
+  1 point): leave that item's component outside the group and put the cut-off on the group.
+- A component's points always count in the total as well. The key is `group` in both places
+  (never `on`: YAML reads a bare `on` as true).
+
+In the `reference` function write the rule the way the source states it (`if any high-risk
+criterion: ...`), not with groups.
 
 ## Step 4. Decide type and kind for every item
 

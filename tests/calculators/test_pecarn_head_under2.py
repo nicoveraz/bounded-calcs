@@ -5,8 +5,9 @@ Source: Kuppermann N et al. Lancet 2009;374(9696):1160-1170, PMID 19758692, figu
 CT recommended if GCS 14 or other signs of altered mental status, or palpable skull fracture;
 otherwise observation versus CT if occipital, parietal or temporal scalp haematoma, loss of
 consciousness of 5 s or more, severe mechanism, or not acting normally per parent; otherwise
-CT not recommended. The score is the procedure's tiered encoding (5 points per high-risk
-criterion, 1 per intermediate one). It is deliberately not derived from the YAML spec.
+CT not recommended. The score is the number
+of criteria present; the category depends on the tier, not on the score. It is deliberately
+not derived from the YAML spec.
 """
 
 import pytest
@@ -35,7 +36,7 @@ def reference(v):
     altered_mental_status = v["gcs"] < 15 or v["other_ams_signs"]  # "GCS=14 or other signs"
     high = [altered_mental_status, v["palpable_skull_fracture"]]
     intermediate = [v[k] for k in INTERMEDIATE]
-    score = 5 * sum(map(bool, high)) + sum(intermediate)
+    score = sum(map(bool, high)) + sum(intermediate)  # number of criteria present
     if any(high):
         return score, "ct_recommended"
     if any(intermediate):
@@ -64,7 +65,7 @@ def test_gcs_threshold(gcs, category):
 @pytest.mark.parametrize("item", ["other_ams_signs", "palpable_skull_fracture"])
 def test_each_high_risk_criterion_recommends_ct(item):
     r = evaluate(CALC, ZERO | {item: "present"})
-    assert (r["score"], r["category"]) == (5, "ct_recommended")
+    assert (r["score"], r["category"]) == (1, "ct_recommended")
 
 
 @pytest.mark.parametrize("item", INTERMEDIATE)
@@ -74,15 +75,16 @@ def test_each_intermediate_criterion_means_observation_versus_ct(item):
 
 
 def test_all_intermediate_criteria_stay_below_ct_recommended():
-    # Four intermediate criteria: 4 points, still observation versus CT (the tier, not a count).
+    # Four intermediate criteria: 4 points, still observation versus CT, while one
+    # high-risk criterion alone (1 point) recommends CT: the tier decides, not the score.
     r = evaluate(CALC, ZERO | {k: "present" for k in INTERMEDIATE})
     assert (r["score"], r["category"]) == (4, "observation_vs_ct")
 
 
 def test_gcs_14_and_other_signs_count_once():
-    # One criterion ("GCS=14 or other signs of altered mental status"): 5 points, not 10.
+    # One criterion ("GCS=14 or other signs of altered mental status"): 1 point, not 2.
     r = evaluate(CALC, ZERO | {"gcs": 14, "other_ams_signs": "present"})
-    assert (r["score"], r["category"]) == (5, "ct_recommended")
+    assert (r["score"], r["category"]) == (1, "ct_recommended")
 
 
 # --- unknown is not normal ---------------------------------------------------------------------
@@ -93,7 +95,7 @@ def test_sparse_note_with_a_severe_mechanism():
     # severe mechanism), GCS 15, frontal bump. Not documented: other signs of altered mental
     # status, skull palpation, loss of consciousness, whether the child is acting normally.
     # Known points: 1 (mechanism). The two high-risk criteria are open (0 or 5 each), the two
-    # intermediate ones too (0 or 1 each): score 1 to 1 + 5 + 5 + 1 + 1 = 13.
+    # intermediate ones too (0 or 1 each): score 1 to 1 + 1 + 1 + 1 + 1 = 5.
     # Observation versus CT at least; CT recommended if either high-risk finding is present.
     # Once one intermediate criterion is present the others cannot change the tier.
     note = {
@@ -103,7 +105,7 @@ def test_sparse_note_with_a_severe_mechanism():
     }
     r = evaluate(CALC, note)
     assert not r["settled"]
-    assert r["score_range"] == [1, 13]
+    assert r["score_range"] == [1, 5]
     assert r["possible_categories"] == ["observation_vs_ct", "ct_recommended"]
     assert {d["item"] for d in r["decisive_unknowns"]} == {
         "other_ams_signs",
@@ -126,7 +128,7 @@ def test_one_undocumented_item_keeps_the_rule_from_being_negative():
 
 
 def test_settled_by_gcs_14_while_everything_else_is_unknown():
-    # GCS 14 alone puts the child in the CT-recommended tier: at least 5 points.
+    # GCS 14 alone puts the child in the CT-recommended tier, whatever else is found.
     r = evaluate(CALC, {"gcs": 14})
     assert r["settled"] and r["category"] == "ct_recommended"
     assert r["decisive_unknowns"] == [] and r["jointly_relevant_unknowns"] == []

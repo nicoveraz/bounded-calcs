@@ -249,14 +249,33 @@ def _count_points(comp: Component, n: int) -> float:
     return next(b.points for b in comp.bands if b.op is None or n >= (b.value or 0))
 
 
-def _reachable_scores(calc: Calculator, state: State, skip: Component | None = None) -> set[float]:
-    scores = {0.0}
+Points = tuple[float, ...]
+"""The total score followed by the points of each group of the calculator."""
+
+
+def _add(calc: Calculator, comp: Component, base: Points, p: float) -> Points:
+    """`base` plus `p` points of `comp`: in the total and in the component's group."""
+    out = list(base)
+    out[0] += p
+    if comp.group is not None:
+        out[1 + calc.groups.index(comp.group)] += p
+    return tuple(out)
+
+
+def _category(calc: Calculator, points: Points) -> str:
+    return calc.category(points[0], points[1:]).name
+
+
+def _reachable_points(calc: Calculator, state: State, skip: Component | None = None) -> set[Points]:
+    """Every (total, group points...) the known and unknown items allow. Exact: components
+    are independent, so it is the sum over components of each one's reachable points."""
+    reached: set[Points] = {(0.0,) * (1 + len(calc.groups))}
     for comp in calc.components:
         if comp is skip:
             continue
         pts = _component_points(comp, state)
-        scores = {s + p for s in scores for p in pts}
-    return scores
+        reached = {_add(calc, comp, s, p) for s in reached for p in pts}
+    return reached
 
 
 def _flip_pairs(comp: Component, state: State, item_id: str) -> set[tuple[float, float]]:
@@ -300,14 +319,16 @@ def _changes_category(calc: Calculator, state: State, item_id: str) -> bool:
     pairs = [(a, b) for a, b in _flip_pairs(comp, state, item_id) if a != b]
     if not pairs:
         return False
-    rest = _reachable_scores(calc, state, skip=comp)
+    rest = _reachable_points(calc, state, skip=comp)
     return any(
-        calc.category(r + a).name != calc.category(r + b).name for r in rest for a, b in pairs
+        _category(calc, _add(calc, comp, r, a)) != _category(calc, _add(calc, comp, r, b))
+        for r in rest
+        for a, b in pairs
     )
 
 
 def _categories(calc: Calculator, state: State) -> set[str]:
-    return {calc.category(s).name for s in _reachable_scores(calc, state)}
+    return {_category(calc, p) for p in _reachable_points(calc, state)}
 
 
 def _describe_value(calc: Calculator, item: Item, v: Any) -> str:
@@ -352,8 +373,9 @@ def evaluate(
     ranges = normal_ranges_in_use(calc, normal_ranges)
     norm = _normalize(calc, inputs, ranges)
     state = norm.state
-    scores = _reachable_scores(calc, state)
-    cats = {calc.category(s).name for s in scores}
+    reached = _reachable_points(calc, state)
+    scores = {p[0] for p in reached}
+    cats = {_category(calc, p) for p in reached}
     ordered = calc.by_risk(cats)
     settled = len(cats) == 1
     unknown_ids = [i for i in state if _uncertain(state, i)]
@@ -513,6 +535,8 @@ def schema(
             ]
             if comp.override:
                 c["override"] = {"item": comp.override, "points": _fmt(comp.override_points or 0)}
+        if comp.group is not None:
+            c["group"] = comp.group
         components.append(c)
 
     return {
@@ -528,8 +552,7 @@ def schema(
             {
                 "name": c.name,
                 "label": c.label,
-                "when": "lowest" if c.lower == float("-inf")
-                else f"score {'>' if c.lower_strict else '>='} {c.lower:g}",
+                "when": c.condition(),
                 "meaning": c.meaning,
             }
             for c in calc.categories
