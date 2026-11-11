@@ -1,0 +1,104 @@
+id: meld_na
+name: MELD-Na (MELD score combined with serum sodium, Kim 2008)
+version: 1
+purpose: >-
+  Severity of chronic liver disease in adults with cirrhosis, as the MELD score adjusted for
+  the serum sodium concentration (Kim 2008): a score from 6 to 40, higher meaning a higher risk
+  of death within 90 days. The source defines no decision categories.
+citation: >-
+  Kim WR, Biggins SW, Kremers WK, et al. Hyponatremia and mortality among patients on the
+  liver-transplant waiting list. N Engl J Med 2008;359(10):1018-1026.
+  doi:10.1056/NEJMoa0801209. PMID 18768945. PMC4374557. Statistical analysis (the MELD
+  formula and its limits) and results (the MELDNa formula and a worked example). [P]
+higher_is_higher_risk: true
+notes:
+  - "MELD (Kim 2008, statistical analysis): 11.2 x ln(INR) + 9.57 x ln(creatinine in mg/dL)
+    + 3.78 x ln(bilirubin in mg/dL) + 6.43, with a lower limit of 1 for all variables,
+    creatinine capped at 4, and creatinine set at 4 if the patient is receiving
+    renal-replacement therapy. The MELD score ranges from 6 to 40."
+  - "MELDNa (Kim 2008, results): MELD - Na - [0.025 x MELD x (140 - Na)] + 140, with the
+    serum sodium (Na) bound between 125 and 140 mmol/L, rounded to the nearest integer and
+    constrained to 6 to 40."
+  - "Worked example in the source: a MELD score of 10 with a sodium of 125 mmol/L gives a
+    MELDNa score of 21."
+  - "TODO(physician-review): the source says both scores are rounded to the nearest integer
+    but not whether MELD is rounded before it enters the sodium formula. Reading chosen: the
+    unrounded MELD is used and only the final result is rounded. The alternative (round MELD
+    first) can differ by one point."
+  - "TODO(physician-review): this is the 2008 formula. Other versions of MELD with sodium
+    exist; which one the tool should carry is the author's decision (issue 42)."
+  - "Score only: the source gives no categories. Developed in adults with cirrhosis listed for
+    a first liver transplantation; the calculator does not check this."
+  - "Source read on 2026-11-11: the full text from PubMed Central, and the formula itself on
+    nejm.org, because it is an image in the PubMed Central text."
+
+items:
+  - id: inr
+    label: International normalized ratio (INR) for the prothrombin time
+    type: numeric
+    kind: measurement
+    unit: ratio
+    accepts: [0.5, 20]
+    notes:
+      - "TODO(physician-review): accepted range 0.5 to 20 was chosen only to reject impossible
+        values; no source gives it. Values below 1 count as 1 in the formula."
+  - id: creatinine
+    label: Serum creatinine
+    type: numeric
+    kind: measurement
+    unit: mg/dL
+    accepts: [0.1, 20]
+    units:
+      umol/L: {divide_by: 88.4, label: "creatinine in micromol/L"}
+    notes:
+      - "Conversion factor from calc-bounds (units.py): 1 mg/dL = 88.4 micromol/L."
+      - "TODO(physician-review): accepted range 0.1 to 20 mg/dL was chosen only to reject
+        impossible values; no source gives it. The formula uses 1 for values below 1 and 4 for
+        values above 4."
+  - id: bilirubin
+    label: Total serum bilirubin
+    type: numeric
+    kind: measurement
+    unit: mg/dL
+    accepts: [0.1, 60]
+    notes:
+      - "TODO(physician-review): accepted range 0.1 to 60 mg/dL was chosen only to reject
+        impossible values; no source gives it. Values below 1 count as 1 in the formula. No
+        other unit is declared: a conversion factor for micromol/L has to come from a source."
+  - id: sodium
+    label: Serum sodium
+    type: numeric
+    kind: measurement
+    unit: mmol/L
+    accepts: [100, 180]
+    notes:
+      - "TODO(physician-review): accepted range 100 to 180 mmol/L was chosen only to reject
+        impossible values (the source reports 112 to 168 in its cohort). The formula uses 125
+        for lower values and 140 for higher ones."
+  - id: renal_replacement_therapy
+    label: Receiving renal-replacement therapy
+    type: boolean
+    kind: finding
+    notes:
+      - "The source says creatinine is set at 4 if the patient is receiving renal-replacement
+        therapy; it does not give a time window in the parts that state the formula."
+
+formula:
+  expression: >-
+    min(max(
+    min(11.2 * ln(max(inr, 1))
+    + 9.57 * ln(max(min(max(creatinine, 1), 4), 4 * renal_replacement_therapy))
+    + 3.78 * ln(max(bilirubin, 1)) + 6.43, 40)
+    - min(max(sodium, 125), 140)
+    - 0.025
+    * min(11.2 * ln(max(inr, 1))
+    + 9.57 * ln(max(min(max(creatinine, 1), 4), 4 * renal_replacement_therapy))
+    + 3.78 * ln(max(bilirubin, 1)) + 6.43, 40)
+    * (140 - min(max(sodium, 125), 140))
+    + 140, 6), 40)
+  decimals: 0
+  monotonic:
+    inr: increasing
+    creatinine: increasing
+    bilirubin: increasing
+    sodium: decreasing

@@ -1,0 +1,133 @@
+id: spesi
+name: Simplified Pulmonary Embolism Severity Index (sPESI)
+version: 1
+purpose: >-
+  Prognosis (30-day mortality risk) in adults with acute symptomatic pulmonary embolism that
+  has been objectively confirmed: low risk (no variable present) or high risk (any variable
+  present). It is not a diagnostic rule for suspected pulmonary embolism.
+citation: >-
+  Jiménez D, Aujesky D, Moores L, et al. Simplification of the pulmonary embolism severity
+  index for prognostication in patients with acute symptomatic pulmonary embolism. Arch Intern
+  Med 2010;170(15):1383-1389. doi:10.1001/archinternmed.2010.199. PMID 20696966. Table 1
+  (variables and points) and methods (scoring and risk categories). [P]
+higher_is_higher_risk: true
+notes:
+  - "One point for each variable present (Jiménez 2010, table 1 and methods). A score of 0 is
+    low risk and a score of 1 or more is high risk."
+  - "Heart failure and chronic lung disease are one variable (chronic cardiopulmonary
+    disease): having both scores 1 point, not 2."
+  - "Derived and validated in patients with confirmed pulmonary embolism. The calculator does
+    not check the diagnosis."
+  - "Source read on the publisher's site (jamanetwork.com) on 2026-11-11: table 1 and the
+    methods sentences that define scoring and categories. The definitions of the comorbidities
+    come from the original PESI (Aujesky 2005), which was not re-read for this spec."
+
+items:
+  - id: age
+    label: Age
+    type: numeric
+    kind: measurement
+    unit: years
+    accepts: [18, 110]
+    notes:
+      - Accepted range taken from calc-bounds (docs/CALCULATOR_NOTES.md, parameter modelling choices).
+      - "TODO(physician-review): ages below 18 are rejected as outside what this calculator
+        accepts (18 to 110 years, the range the other adult calculators use). The source does
+        not state an age range in the parts read; the alternative is a wider range."
+  - id: history_of_cancer
+    label: History of cancer
+    type: boolean
+    kind: finding
+    notes:
+      - "TODO(physician-review): the source table says only 'history of cancer'. Reading
+        chosen: any history of cancer, active or past. The alternative is active cancer only,
+        if the original PESI definition (Aujesky 2005) restricts it."
+  - id: history_of_heart_failure
+    label: History of heart failure
+    type: boolean
+    kind: finding
+  - id: history_of_chronic_lung_disease
+    label: History of chronic lung disease
+    type: boolean
+    kind: finding
+  - id: heart_rate
+    label: Heart rate
+    type: numeric
+    kind: measurement
+    unit: /min
+    accepts: [20, 250]
+    normal: [60, 99]
+    notes:
+      - Accepted range taken from calc-bounds (docs/CALCULATOR_NOTES.md, parameter modelling choices).
+      - "Normal range 60 to 99 /min, used when the source says only that it is
+        normal. Taken from calc-bounds (params.py, absent_means), reviewed by the author on
+        2026-09-27; it crosses no threshold of any calculator that uses this item."
+  - id: sbp
+    label: Systolic blood pressure
+    type: numeric
+    kind: measurement
+    unit: mmHg
+    accepts: [50, 250]
+    normal: [101, 139]
+    notes:
+      - Accepted range taken from calc-bounds (docs/CALCULATOR_NOTES.md, parameter modelling choices).
+      - "Normal range 101 to 139 mmHg, used when the source says only that it is
+        normal. Taken from calc-bounds (params.py, absent_means), reviewed by the author on
+        2026-09-27; it crosses no threshold of any calculator that uses this item."
+  - id: sao2
+    label: Arterial oxyhemoglobin saturation
+    type: numeric
+    kind: measurement
+    unit: "%"
+    accepts: [50, 100]
+    notes:
+      - "Accepted range 50 to 100 %, the range calc-bounds uses for oxygen saturation."
+      - "TODO(physician-review): the source table says 'arterial oxyhemoglobin saturation
+        level <90%' without saying how it is measured or whether supplemental oxygen is
+        allowed. Reading chosen: any measured saturation, by pulse oximetry or blood gas, with
+        or without oxygen. It is a separate item from spo2 (PERC), which is on room air."
+
+components:
+  - id: age
+    label: Age > 80 years
+    rule: bands
+    item: age
+    bands:
+      - {gt: 80, points: 1}
+      - {points: 0}
+  - {id: cancer, label: History of cancer, rule: present, item: history_of_cancer, points: 1}
+  - id: chronic_cardiopulmonary_disease
+    label: History of heart failure or chronic lung disease
+    rule: any_of
+    conditions:
+      - {item: history_of_heart_failure}
+      - {item: history_of_chronic_lung_disease}
+    points: 1
+  - id: heart_rate
+    label: Pulse >= 110 beats/min
+    rule: bands
+    item: heart_rate
+    bands:
+      - {gte: 110, points: 1}
+      - {points: 0}
+  - id: sbp
+    label: Systolic blood pressure < 100 mmHg
+    rule: bands
+    item: sbp
+    bands:
+      - {lt: 100, points: 1}
+      - {points: 0}
+  - id: sao2
+    label: Arterial oxyhemoglobin saturation < 90%
+    rule: bands
+    item: sao2
+    bands:
+      - {lt: 90, points: 1}
+      - {points: 0}
+
+categories:
+  - name: low_risk
+    label: Low risk (score 0, no variable present)
+  - name: high_risk
+    label: High risk (score 1 or more, any variable present)
+    min: 1

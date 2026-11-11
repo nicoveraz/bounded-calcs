@@ -50,6 +50,10 @@ Python 3.11 or later. The MCP server can also run without installing anything fi
 | `wells_dvt` | Wells criteria for DVT, two-tier (unlikely / likely) | Wells et al., N Engl J Med 2003. PMID 14507948; NICE NG158 table 1 | [P], [S] |
 | `mcisaac` | McIsaac sore throat score (no culture or antibiotic / culture, treat if positive / culture, treat on clinical grounds) | McIsaac et al., CMAJ 1998. PMID 9475915 | [P] |
 | `nexus` | NEXUS cervical spine criteria (negative / positive) | Hoffman et al., N Engl J Med 2000. PMID 10891516 | [P] |
+| `canadian_syncope` | Canadian Syncope Risk Score (very low / low / medium / high / very high) | Thiruganasambandamoorthy et al., CMAJ 2016. PMID 27378464 | [P] |
+| `spesi` | Simplified PESI (low risk / high risk) | Jiménez et al., Arch Intern Med 2010. PMID 20696966 | [P] |
+| `bisap` | BISAP (score 0 to 5, no categories) | Wu et al., Gut 2008. PMID 18519429 | [P] |
+| `meld_na` | MELD-Na, 2008 formula (score 6 to 40, no categories) | Kim et al., N Engl J Med 2008. PMID 18768945 | [P] |
 
 Verified: **[P]** primary full text read, **[A]** abstract only, **[S]** secondary source
 (guideline or later paper). All four are ported from calc-bounds, whose readings the author
@@ -99,6 +103,9 @@ that it depends on two things the note doesn't say, one of which only the clinic
   lists it). A range on one side of every threshold settles the item; one that crosses a
   threshold leaves it as a question when it matters. The result names any range assumed for
   "normal" under `normal_assumed`, with its source
+- a numeric item that lists other units takes `{"value": x, "unit": u}`, and the engine
+  converts it; a value outside the range the calculator accepts is an error, not a score (see
+  Units, Site units and Accepted ranges below)
 - anything omitted, `null`, or `"unknown"` is unknown, **never** normal
 - a numeric item without a normal range (such as age) that the source only calls "normal" is
   also unknown; never invent a number
@@ -144,8 +151,7 @@ with an explanation, not a score.
 **Score-only calculators.** A scale whose source gives a score and no decision categories
 has no `categories` in its spec. The result is then the score: `settled` means the score is
 exact, `score_range` bounds it otherwise, and each unknown item that can change it is listed
-with the range the score would have for each answer. No built-in calculator is score-only
-yet.
+with the range the score would have for each answer. `bisap` and `meld_na` are score-only.
 
 **Formula calculators.** A spec can have a `formula` instead of point components: an
 expression on the items, such as `(a / b) / c`. A known input is used as it is; an unknown one
@@ -154,8 +160,8 @@ range. The spec declares whether the result rises or falls with each numeric inp
 loader checks it, so the result's lowest and highest values are at the ends of those ranges:
 `score_range` is exact, and every category it touches is listed as possible. For which unknown
 inputs matter, formulas are conservative: an input is called irrelevant only if it cannot move
-the result at all or the category is already settled. No built-in calculator uses a formula
-yet.
+the result at all or the category is already settled. `meld_na` is the first built-in formula
+calculator.
 
 **Units.** Every numeric item has one unit, and a number sent alone is read in it. An item
 can also declare other units with their conversion factor: CURB-65 urea is in mmol/L and
@@ -194,6 +200,9 @@ uvx --from "bounded-calcs[mcp]" bounded-calcs-mcp --normal-ranges ranges.yaml
 
 In Python: `evaluate(calc, findings, normal_ranges={"urea": [2.5, 7.0]})`.
 
+The units a site's laboratory reports are set the same way, with `--units units.yaml`
+(`urea: bun_mg/dL`); see Site units above.
+
 From a clone of this repository, use `"command": "uv"` with
 `"args": ["--directory", "/path/to/bounded-calcs", "run", "bounded-calcs-mcp"]`.
 
@@ -204,7 +213,8 @@ decisive unknowns, and never fill judgment items itself.
 ## Adding a calculator
 
 Each calculator is one YAML file in `src/bounded_calcs/specs/`: items (type, kind, levels or
-unit, a question to ask), components (how items become points), and categories. Component
+unit, a question to ask), components (how items become points) or a formula, and categories
+(left out for a score-only calculator). Component
 rules: `present`, `absent`, `levels`, `bands` (numeric thresholds), `count` (number of present
 items, with an optional override item), and `any_of` (points if any of several conditions is
 met, such as CURB-65's "SBP < 90 or DBP <= 60"). Points may be negative. Every item belongs to
@@ -242,6 +252,14 @@ jointly relevant, so there is always something to ask. Decisive
 items are ordered by how often an answer settles the decision, then by how much it narrows on
 average, with data items before judgments when otherwise equal.
 
+For a formula calculator the result range comes from the ends of the input ranges, which is
+exact because the spec declares, and the loader checks, the direction of the result in each
+input.
+
+The engine is a small package with one module per job (`engine/inputs.py`, `engine/rules/`
+with one module per scoring rule, `engine/bounds.py`, `engine/formula_bounds.py`,
+`engine/result.py`), so a new rule is a new module and not an edit to the others.
+
 ## Development
 
 ```bash
@@ -254,8 +272,8 @@ Releases are published to PyPI by a GitHub Actions workflow when a version tag i
 
 Each calculator has its own test file with an independent reference function, threshold
 cases taken from the source, and sparse-note examples. Other tests cover the spec loader's
-validation, input handling, every rule type, an end-to-end MCP session, and that the
-reference check itself fails on a wrong spec.
+validation, input handling, units, every rule type, formula calculators, an end-to-end MCP
+session, and that the reference check itself fails on a wrong spec.
 
 ## License
 

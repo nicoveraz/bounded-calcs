@@ -1,0 +1,122 @@
+id: canadian_syncope
+name: Canadian Syncope Risk Score
+version: 1
+purpose: >-
+  Risk of a serious adverse event within 30 days after disposition from the emergency
+  department in adults (16 years or older) assessed for syncope within 24 hours of the event:
+  very low, low, medium, high or very high.
+citation: >-
+  Thiruganasambandamoorthy V, Kwong K, Wells GA, et al. Development of the Canadian Syncope
+  Risk Score to predict serious adverse events after emergency department assessment of
+  syncope. CMAJ 2016;188(12):E289-E298. doi:10.1503/cmaj.151469. PMID 27378464. Figure 2 (the
+  score, its footnotes and the risk categories). [P]
+higher_is_higher_risk: true
+notes:
+  - "Points and risk categories from figure 2 of the source: total score -3 to 11; -3 and -2
+    very low, -1 and 0 low, 1 to 3 medium, 4 and 5 high, 6 or more very high."
+  - "The source is the derivation study; it says the tool was still to be validated."
+  - "Developed in patients aged 16 years or older presenting within 24 hours of syncope
+    (abstract). The calculator does not check this."
+  - "Source read on the publisher's site (cmaj.ca) on 2026-11-11: abstract, figure 2 as an
+    image, and its legend. The methods and the other tables were not read."
+
+items:
+  - id: vasovagal_predisposition
+    label: >-
+      Predisposition to vasovagal symptoms: triggered by being in a warm crowded place,
+      prolonged standing, fear, emotion or pain
+    type: boolean
+    kind: finding
+  - id: history_of_heart_disease
+    label: >-
+      History of heart disease: coronary or valvular heart disease, cardiomyopathy, congestive
+      heart failure, or non-sinus rhythm (electrocardiogram evidence during the index visit or
+      documented history of ventricular or atrial arrhythmias, or device implantation)
+    type: boolean
+    kind: finding
+  - id: sbp_below_90_or_above_180
+    label: >-
+      Any systolic pressure reading below 90 or above 180 mmHg, from triage until disposition
+      from the emergency department
+    type: boolean
+    kind: finding
+    notes:
+      - "A yes/no item and not a number, because the criterion is about every reading taken in
+        the emergency department: one normal reading does not make it absent."
+  - id: troponin_above_99th_percentile
+    label: Elevated troponin level (above the 99th percentile of the normal population)
+    type: boolean
+    kind: finding
+    notes:
+      - "The cut-off is the laboratory's own 99th percentile, so this is a yes/no item."
+      - "TODO(physician-review): a troponin that was not measured is unknown here, so the tool
+        asks for it when it matters. The alternative, if the source scored unmeasured troponin
+        as not elevated, is to treat 'not measured' as absent; the parts read do not say."
+  - id: abnormal_qrs_axis
+    label: Abnormal QRS axis (below -30 degrees or above 100 degrees)
+    type: boolean
+    kind: finding
+  - id: qrs_duration
+    label: QRS duration
+    type: numeric
+    kind: measurement
+    unit: ms
+  - id: qtc
+    label: Corrected QT interval
+    type: numeric
+    kind: measurement
+    unit: ms
+  - id: ed_diagnosis
+    label: Diagnosis in the emergency department
+    type: ordinal
+    kind: judgment
+    levels: [vasovagal_syncope, other, cardiac_syncope]
+    question: >-
+      What is the emergency physician's diagnosis for this syncope: vasovagal syncope, cardiac
+      syncope, or neither?
+    notes:
+      - "The figure lists vasovagal syncope (-2) and cardiac syncope (2) under 'Diagnosis in
+        emergency department'. 'other' covers every other diagnosis and no diagnosis: 0
+        points."
+
+components:
+  - {id: vasovagal_predisposition, label: Predisposition to vasovagal symptoms, rule: present, item: vasovagal_predisposition, points: -1}
+  - {id: history_of_heart_disease, label: History of heart disease, rule: present, item: history_of_heart_disease, points: 1}
+  - {id: systolic_pressure, label: "Any systolic pressure reading < 90 or > 180 mmHg", rule: present, item: sbp_below_90_or_above_180, points: 2}
+  - {id: troponin, label: Elevated troponin level, rule: present, item: troponin_above_99th_percentile, points: 2}
+  - {id: qrs_axis, label: Abnormal QRS axis, rule: present, item: abnormal_qrs_axis, points: 1}
+  - id: qrs_duration
+    label: QRS duration > 130 ms
+    rule: bands
+    item: qrs_duration
+    bands:
+      - {gt: 130, points: 1}
+      - {points: 0}
+  - id: qtc
+    label: Corrected QT interval > 480 ms
+    rule: bands
+    item: qtc
+    bands:
+      - {gt: 480, points: 2}
+      - {points: 0}
+  - id: ed_diagnosis
+    label: Diagnosis in the emergency department
+    rule: levels
+    item: ed_diagnosis
+    points: {vasovagal_syncope: -2, other: 0, cardiac_syncope: 2}
+
+categories:
+  - name: very_low
+    label: Very low risk (score -3 or -2)
+  - name: low
+    label: Low risk (score -1 or 0)
+    min: -1
+  - name: medium
+    label: Medium risk (score 1 to 3)
+    min: 1
+  - name: high
+    label: High risk (score 4 or 5)
+    min: 4
+  - name: very_high
+    label: Very high risk (score 6 or more)
+    min: 6

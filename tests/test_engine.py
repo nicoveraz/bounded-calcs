@@ -133,10 +133,15 @@ def test_unsettled_results_always_offer_something_to_ask(calc):
             i: rng.choice(item_values(calc, i)) for i in calc.items if rng.random() < p_known
         }
         r = evaluate(calc, known)
-        assert r["settled"] == (len(r["possible_categories"]) == 1)
+        if calc.categories:
+            assert r["settled"] == (len(r["possible_categories"]) == 1)
+        else:  # score-only: what is settled is the score, and there are no categories
+            assert r["settled"] == (r["score"] is not None)
+            assert r["category"] is None and r["possible_categories"] == []
         if r["settled"]:
             assert r["decisive_unknowns"] == [] and r["jointly_relevant_unknowns"] == []
-            assert r["category"] == r["possible_categories"][0]
+            if calc.categories:
+                assert r["category"] == r["possible_categories"][0]
         else:
             assert r["category"] is None
             assert r["decisive_unknowns"] or r["jointly_relevant_unknowns"]
