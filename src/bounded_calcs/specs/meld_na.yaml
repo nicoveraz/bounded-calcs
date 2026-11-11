@@ -85,18 +85,13 @@ items:
         therapy; it does not give a time window in the parts that state the formula."
 
 formula:
-  expression: >-
-    min(max(
-    min(11.2 * ln(max(inr, 1))
-    + 9.57 * ln(max(min(max(creatinine, 1), 4), 4 * renal_replacement_therapy))
-    + 3.78 * ln(max(bilirubin, 1)) + 6.43, 40)
-    - min(max(sodium, 125), 140)
-    - 0.025
-    * min(11.2 * ln(max(inr, 1))
-    + 9.57 * ln(max(min(max(creatinine, 1), 4), 4 * renal_replacement_therapy))
-    + 3.78 * ln(max(bilirubin, 1)) + 6.43, 40)
-    * (140 - min(max(sodium, 125), 140))
-    + 140, 6), 40)
+  where:
+    creatinine_used: max(min(max(creatinine, 1), 4), 4 * renal_replacement_therapy)
+    meld: >-
+      min(11.2 * ln(max(inr, 1)) + 9.57 * ln(creatinine_used) + 3.78 * ln(max(bilirubin, 1))
+      + 6.43, 40)
+    na: min(max(sodium, 125), 140)
+  expression: min(max(meld - na - 0.025 * meld * (140 - na) + 140, 6), 40)
   decimals: 0
   monotonic:
     inr: increasing

@@ -307,6 +307,7 @@ def schema(
         f = calc.formula
         out["formula"] = {
             "expression": f.expression,
+            "where": dict(f.where),
             "unit": f.unit,
             "decimals": f.decimals,
             "monotonic": dict(f.monotonic),

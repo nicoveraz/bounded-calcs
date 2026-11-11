@@ -1,6 +1,7 @@
 """The reference check must have teeth: wrong specs and wrong references have to fail."""
 
 import copy
+import dataclasses
 
 import pytest
 
@@ -81,14 +82,19 @@ def test_reference_must_return_a_known_category():
 
 
 def test_category_nothing_reaches_fails_even_if_both_sides_agree():
-    d = copy.deepcopy(SPEC)
-    d["categories"][1]["min"] = 5  # the maximum score is 4
+    # The loader refuses such a spec itself now (see test_spec.py), so the calculator is built
+    # past the loader here: the reference comparison keeps its own guard.
+    calc = parse(copy.deepcopy(SPEC))
+    unreachable = dataclasses.replace(calc.categories[1], lower=5.0)  # the maximum score is 4
+    calc = dataclasses.replace(
+        calc, categories=(calc.categories[0], unreachable, *calc.categories[2:])
+    )
 
     def agrees(v):
         return reference(v)[0], "low"
 
     with pytest.raises(AssertionError, match="ever reaches"):
-        assert_matches_reference(parse(d), agrees)
+        assert_matches_reference(calc, agrees)
 
 
 def test_extra_values_only_for_numeric_items():

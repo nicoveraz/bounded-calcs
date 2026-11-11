@@ -79,6 +79,7 @@ answer otherwise.
 from __future__ import annotations
 
 import dataclasses
+import functools
 import math
 from importlib import resources
 from pathlib import Path
@@ -98,6 +99,7 @@ from bounded_calcs._validate import (
     _text,
     _texts,
 )
+from bounded_calcs.engine.result import evaluate
 from bounded_calcs.engine.rules import RULES, component_keys, parse_component
 from bounded_calcs.formula import Formula, FormulaError, parse_formula
 from bounded_calcs.model import (
@@ -359,6 +361,22 @@ def _formula(data: dict[str, Any], where: str, items: dict[str, Item]) -> Formul
         raise SpecError(str(e)) from None
 
 
+def _check_every_category_can_be_reached(calc: Calculator, where: str) -> None:
+    """With nothing known, every category must be possible: one that is not can never be
+    the result, which means a cut-off is wrong (above the highest score, for example)."""
+    if not calc.categories:
+        return
+    result = evaluate(calc, {})
+    never = [c.name for c in calc.categories if c.name not in result["possible_categories"]]
+    if never:
+        lo, hi = result["score_range"]
+        raise SpecError(
+            f"{where}: the categor{'y' if len(never) == 1 else 'ies'} {never} can never be "
+            f"reached. The score can be anything from {lo:g} to {hi:g}; check the cut-offs "
+            "against the points."
+        )
+
+
 def parse(data: Any) -> Calculator:
     """Build a Calculator from the mapping a YAML spec loads into, or raise SpecError."""
     _only(data, _TOP_KEYS, "spec")
@@ -382,7 +400,7 @@ def parse(data: Any) -> Calculator:
     if not isinstance(higher, bool):
         raise SpecError(f"{where}: higher_is_higher_risk must be true or false")
 
-    return Calculator(
+    calc = Calculator(
         id=cid,
         name=_text(_req(data, "name", where), where, "name"),
         version=version,
@@ -397,6 +415,8 @@ def parse(data: Any) -> Calculator:
         groups=groups,
         formula=formula,
     )
+    _check_every_category_can_be_reached(calc, where)
+    return calc
 
 
 def load_file(path: str | Path) -> Calculator:
@@ -405,8 +425,9 @@ def load_file(path: str | Path) -> Calculator:
         return parse(yaml.safe_load(f))
 
 
-def load_builtin() -> dict[str, Calculator]:
-    """All calculators shipped in bounded_calcs/specs, keyed by id."""
+@functools.cache
+def _builtin() -> tuple[Calculator, ...]:
+    """The built-in calculators, read and checked once per process."""
     out: dict[str, Calculator] = {}
     for entry in resources.files("bounded_calcs.specs").iterdir():
         if entry.name.endswith(".yaml"):
@@ -414,4 +435,12 @@ def load_builtin() -> dict[str, Calculator]:
             if entry.name != f"{calc.id}.yaml":
                 raise SpecError(f"{entry.name}: file name must be '{calc.id}.yaml' (its id)")
             out[calc.id] = calc
-    return dict(sorted(out.items()))
+    return tuple(c for _, c in sorted(out.items()))
+
+
+def load_builtin() -> dict[str, Calculator]:
+    """All calculators shipped in bounded_calcs/specs, keyed by id.
+
+    The files are read once per process. Each call returns a new dictionary, but the
+    Calculator objects in it are shared: treat them as read-only."""
+    return {c.id: c for c in _builtin()}

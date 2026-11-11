@@ -290,3 +290,45 @@ def test_ordinal_values_must_cover_the_levels():
 def test_the_not_monotonic_message_says_what_to_do():
     with pytest.raises(SpecError, match="not increasing in 'c'"):
         parse(broken(RATIO, MISTAKES["direction declared the wrong way"]))
+
+
+# --- named parts -------------------------------------------------------------------------------
+
+NAMED = broken(
+    RATIO,
+    lambda d: d["formula"].update(where={"ratio": "a / b", "per_c": "ratio / c"}, expression="per_c"),
+)
+
+
+def test_named_parts_give_the_same_calculator():
+    plain, named = parse(RATIO), parse(NAMED)
+    for values in ({"a": 90, "b": 0.5, "c": 30}, {"a": 90, "b": 0.5}, {}):
+        a, b = evaluate(plain, values), evaluate(named, values)
+        assert (a["score"], a["score_range"], a["possible_categories"]) == (
+            b["score"], b["score_range"], b["possible_categories"],
+        )  # fmt: skip
+    assert schema(named)["formula"]["where"] == {"ratio": "a / b", "per_c": "ratio / c"}
+    assert schema(plain)["formula"]["where"] == {}
+
+
+@pytest.mark.parametrize(
+    "where",
+    [
+        {"a": "b / c"},  # the name of an item
+        {"max": "a / b"},  # the name of a function
+        {"per_c": "ratio / c", "ratio": "a / b"},  # uses a name defined below it
+        {"ratio": "a / b", "spare": "a * 2"},  # defined but never used
+        {"ratio": "a / d"},  # uses something that is nothing
+        {"ratio": 3},  # not text
+        {"my ratio": "a / b"},  # not a usable name
+        ["ratio"],  # not a mapping
+    ],
+)
+def test_bad_named_parts_are_refused(where):
+    with pytest.raises(SpecError):
+        parse(broken(RATIO, lambda d: d["formula"].update(where=where, expression="ratio / c")))
+
+
+def test_a_named_part_does_not_excuse_an_unused_item():
+    with pytest.raises(SpecError, match="not used by the formula"):
+        parse(broken(RATIO, lambda d: d["formula"].update(where={"r": "a / b"}, expression="r")))
