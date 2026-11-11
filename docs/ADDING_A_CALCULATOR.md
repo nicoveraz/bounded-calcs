@@ -106,6 +106,9 @@ A formula calculator has no `components`. Its spec has the items and
   up and then down with some input, it does not fit: stop and ask.
 - Limits the source puts on an input ("values below 1 are set to 1") are written with `max`
   and `min` in the expression.
+- Give the parts of a long formula the names the source uses, under `where:` (see
+  `meld_na.yaml`), so that the spec can be read against the paper line by line. A name may
+  use items and the names above it.
 - `decimals` only if the source rounds the result; cut-offs are compared after rounding.
 - In the test file the reference returns `(result, category)` (`(result, None)` when there
   are no categories) and is checked with `assert_matches_reference(CALC, reference)`, as for

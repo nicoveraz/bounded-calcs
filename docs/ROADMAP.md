@@ -180,8 +180,8 @@ These change the engine or the input format, so they are not for unattended work
    ranges of calc-bounds. `gcs` and the McIsaac `age` have none yet (no source for a range).
 3. ~~Formula calculators~~ ([#11](https://github.com/nicoveraz/bounded-calcs/issues/11)): done as a separate kind of calculator (`formula` instead
    of `components`), for formulas that move in one direction with each input. `meld_na` is
-   the first. Not covered: a formula inside a sum of points, non-monotonic formulas, and named
-   sub-expressions (the MELD-Na expression repeats the MELD term).
+   the first. Parts of a formula can be named (`where`). Not covered: a formula inside a sum of
+   points, and non-monotonic formulas.
 4. ~~Categories that depend on an item, and tiers~~ ([#12](https://github.com/nicoveraz/bounded-calcs/issues/12)): done with component
    groups (a category can compare the points of one group). The PECARN rules use them. Still
    open in #12: an item shared by two components.

@@ -319,3 +319,29 @@ def test_randomly_damaged_builtin_specs_fail_cleanly():
             parse(d)
         except SpecError:
             pass  # the only acceptable failure; any other exception fails this test
+
+
+# --- a category nothing can reach -------------------------------------------------------------
+
+
+def test_a_category_that_can_never_be_reached_is_refused():
+    top = len(BASE["categories"]) - 1
+    with pytest.raises(SpecError, match="can never be reached"):
+        parse(broken(lambda d: d["categories"][top].update(min=1000)))
+    try:
+        parse(broken(lambda d: d["categories"][top].update(min=1000)))
+    except SpecError as e:  # the message names the category and the real score range
+        assert BASE["categories"][top]["name"] in str(e) and "The score can be anything from" in str(e)
+
+
+# --- built-in specs are read once --------------------------------------------------------------
+
+
+def test_load_builtin_reads_the_files_once_and_returns_a_new_dictionary():
+    from bounded_calcs import load_builtin
+
+    first, second = load_builtin(), load_builtin()
+    assert first is not second and first == second
+    assert all(first[k] is second[k] for k in first)
+    first.pop(next(iter(first)))  # a caller changing its dictionary does not affect others
+    assert len(load_builtin()) == len(second)

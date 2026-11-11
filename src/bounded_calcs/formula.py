@@ -3,6 +3,9 @@
     formula:
       expression: (a / b) / c          # items by id; + - * / **, parentheses, and the
                                        # functions ln, log10, exp, sqrt, min, max
+      where:                           # optional: names for parts of the expression, so
+        ratio: a / b                   # that it reads like the source. Each may use items
+                                       # and the names above it; `expression` may use all.
       unit: mL/min                     # optional: the unit of the result
       decimals: 1                      # optional: round the result to this many decimals
       monotonic:                       # every numeric item: does the result rise or fall
@@ -28,6 +31,7 @@ to Python's `eval`.
 from __future__ import annotations
 
 import ast
+import copy
 import itertools
 import math
 from collections.abc import Mapping, Sequence
@@ -35,7 +39,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 DIRECTIONS = ("increasing", "decreasing")
-FORMULA_KEYS = {"expression", "unit", "decimals", "monotonic", "values"}
+FORMULA_KEYS = {"expression", "where", "unit", "decimals", "monotonic", "values"}
 
 _FUNCTIONS: dict[str, tuple[Any, int | None]] = {  # name -> (function, number of arguments)
     "ln": (math.log, 1),
@@ -106,6 +110,16 @@ def _eval(node: ast.AST, env: Mapping[str, float]) -> float:
     return float(_FUNCTIONS[node.func.id][0](*(_eval(a, env) for a in node.args)))
 
 
+class _Fill(ast.NodeTransformer):
+    """Replace each named part by its expression."""
+
+    def __init__(self, parts: Mapping[str, ast.expr]) -> None:
+        self.parts = parts
+
+    def visit_Name(self, node: ast.Name) -> ast.AST:  # noqa: N802 (ast's naming)
+        return copy.deepcopy(self.parts[node.id]) if node.id in self.parts else node
+
+
 @dataclass(frozen=True)
 class Formula:
     expression: str
@@ -114,7 +128,8 @@ class Formula:
     monotonic: dict[str, str]  # numeric item -> "increasing" or "decreasing"
     level_values: dict[str, dict[str, float]]  # ordinal item -> level -> number
     names: frozenset[str]  # the items the expression uses
-    tree: ast.Expression = field(compare=False, repr=False)
+    tree: ast.Expression = field(compare=False, repr=False)  # with the named parts filled in
+    where: dict[str, str] = field(default_factory=dict)  # named parts, as written
 
     def number(self, item_id: str, value: Any) -> float:
         """The number an item's value stands for in the expression."""
@@ -171,16 +186,55 @@ def parse_formula(
     expression = raw.get("expression")
     if not isinstance(expression, str) or not expression.strip():
         raise FormulaError(f"{where} formula: 'expression' must be text")
-    try:
-        tree = ast.parse(expression.strip(), mode="eval")
-    except SyntaxError as e:
-        raise FormulaError(f"{where} formula: cannot read the expression: {e.msg}") from None
-    names: set[str] = set()
-    try:
-        _check(tree, names)
-    except FormulaError as e:
-        raise FormulaError(f"{where} formula: {e}") from None
     items = {*numeric, *ordinal, *boolean}
+
+    def read(text: Any, what: str) -> ast.Expression:
+        if not isinstance(text, str) or not text.strip():
+            raise FormulaError(f"{where} formula: {what} must be text")
+        try:
+            tree = ast.parse(text.strip(), mode="eval")
+            _check(tree, set())
+        except SyntaxError as e:
+            raise FormulaError(f"{where} formula: cannot read {what}: {e.msg}") from None
+        except FormulaError as e:
+            raise FormulaError(f"{where} formula: {what}: {e}") from None
+        return tree
+
+    # Named parts are filled into the expression here, so that evaluation and the direction
+    # check see one expression on the items.
+    parts: dict[str, ast.expr] = {}
+    mentioned: set[str] = set()
+    raw_parts = raw.get("where", {})
+    if not isinstance(raw_parts, dict):
+        raise FormulaError(f"{where} formula: 'where' must map names to expressions")
+    for pname, text in raw_parts.items():
+        if not isinstance(pname, str) or not pname.isidentifier():
+            raise FormulaError(f"{where} formula: where: {pname!r} is not a usable name")
+        if pname in items or pname in _FUNCTIONS or pname in parts:
+            raise FormulaError(
+                f"{where} formula: where: '{pname}' is already an item, a function or an "
+                "earlier name"
+            )
+        part = read(text, f"where.{pname}")
+        mentioned |= {n.id for n in ast.walk(part) if isinstance(n, ast.Name)}
+        filled = _Fill(parts).visit(part).body
+        stray = {n.id for n in ast.walk(filled) if isinstance(n, ast.Name)} - items - set(_FUNCTIONS)
+        if stray:
+            raise FormulaError(
+                f"{where} formula: where.{pname} uses {sorted(stray)}, which are neither items "
+                "nor names defined above it"
+            )
+        parts[pname] = filled
+    main = read(expression, "the expression")
+    mentioned |= {n.id for n in ast.walk(main) if isinstance(n, ast.Name)}
+    if set(parts) - mentioned:
+        raise FormulaError(
+            f"{where} formula: where: {sorted(set(parts) - mentioned)} defined but never used"
+        )
+    tree = _Fill(parts).visit(main)
+    ast.fix_missing_locations(tree)
+    names: set[str] = set()
+    _check(tree, names)
     if names - items:
         raise FormulaError(
             f"{where} formula: the expression uses {sorted(names - items)}, which are not items"
@@ -237,6 +291,7 @@ def parse_formula(
         level_values=level_values,
         names=frozenset(names),
         tree=tree,
+        where={k: v.strip() for k, v in raw_parts.items()},
     )
     _check_monotonic(formula, where, {i: r for i, r in numeric.items() if r}, ordinal, boolean)
     return formula
