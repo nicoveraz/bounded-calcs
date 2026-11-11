@@ -29,8 +29,10 @@ items:
     type: numeric
     kind: measurement
     unit: mmol/L
+    accepts: [1, 60]
     normal: [2.5, 8]
     notes:
+      - Accepted range taken from calc-bounds (docs/CALCULATOR_NOTES.md, parameter modelling choices).
       - "REVIEWED(physician): default normal range 2.5 to 8 mmol/L. The lower limit is from
         calc-bounds (params.py, absent_means). The upper limit is set above the 7 mmol/L
         threshold on purpose (issue #20): a urea reported only as normal leaves the CURB-65
@@ -46,8 +48,10 @@ items:
     type: numeric
     kind: measurement
     unit: /min
+    accepts: [4, 60]
     normal: [12, 20]
     notes:
+      - Accepted range taken from calc-bounds (docs/CALCULATOR_NOTES.md, parameter modelling choices).
       - "Normal range 12 to 20 /min, used when the source says only that it is
         normal. Taken from calc-bounds (params.py, absent_means), reviewed by the author on
         2026-09-27; it crosses no threshold of any calculator that uses this item."
@@ -56,8 +60,10 @@ items:
     type: numeric
     kind: measurement
     unit: mmHg
+    accepts: [50, 250]
     normal: [101, 139]
     notes:
+      - Accepted range taken from calc-bounds (docs/CALCULATOR_NOTES.md, parameter modelling choices).
       - "Normal range 101 to 139 mmHg, used when the source says only that it is
         normal. Taken from calc-bounds (params.py, absent_means), reviewed by the author on
         2026-09-27; it crosses no threshold of any calculator that uses this item."
@@ -66,8 +72,10 @@ items:
     type: numeric
     kind: measurement
     unit: mmHg
+    accepts: [20, 150]
     normal: [61, 89]
     notes:
+      - Accepted range taken from calc-bounds (docs/CALCULATOR_NOTES.md, parameter modelling choices).
       - "Normal range 61 to 89 mmHg, used when the source says only that it is
         normal. Taken from calc-bounds (params.py, absent_means), reviewed by the author on
         2026-09-27; it crosses no threshold of any calculator that uses this item."
@@ -76,6 +84,10 @@ items:
     type: numeric
     kind: measurement
     unit: years
+    accepts: [18, 110]
+    notes:
+      - Accepted range taken from calc-bounds (docs/CALCULATOR_NOTES.md, parameter modelling choices).
+      - "TODO(physician-review): ages below 18 are rejected as outside what this calculator accepts (18 to 110 years, the range calc-bounds uses for this adult score). The alternative is a wider range that only catches impossible ages and leaves applicability to the note in purpose."
 
 components:
   - {id: confusion, label: Confusion, rule: present, item: confusion, points: 1}

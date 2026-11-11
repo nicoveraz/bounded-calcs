@@ -40,7 +40,10 @@ items:
     type: numeric
     kind: measurement
     unit: years
+    accepts: [18, 110]
     notes:
+      - Accepted range taken from calc-bounds (docs/CALCULATOR_NOTES.md, parameter modelling choices).
+      - "TODO(physician-review): ages below 18 are rejected as outside what this calculator accepts (18 to 110 years, the range calc-bounds uses for this adult score). The alternative is a wider range that only catches impossible ages and leaves applicability to the note in purpose."
       - "REVIEWED(physician): age 45 scores 1 point and age 65 scores 2 (Six 2008 text, '65 years
         or older'). Poldervaart 2013 gives 0 points at 45; the Six 2008 table prints '<= 65' for
         2 points, treated as a typo."

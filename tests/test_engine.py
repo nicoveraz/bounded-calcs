@@ -471,3 +471,42 @@ def test_groups_items_that_matter_only_together():
     assert r["decisive_unknowns"] == []
     assert set(r["jointly_relevant_unknowns"]) == {"a", "b", "c"}
     assert r["irrelevant_unknowns"] == ["minor"]
+
+
+# --- accepted ranges -----------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "inputs",
+    [
+        {"spo2": 0.97},  # a fraction instead of a percentage
+        {"age": 500},
+        {"age": 16},  # an adult score
+        {"heart_rate": {"min": 300}},  # a bound outside the range
+        {"spo2": {"min": 90, "max": 101}},
+    ],
+)
+def test_values_outside_the_accepted_range_are_errors_not_scores(inputs):
+    with pytest.raises(InputError, match="outside the values this calculator accepts"):
+        evaluate(CALCS["perc"], inputs)
+
+
+def test_the_ends_of_the_accepted_range_are_accepted():
+    perc = CALCS["perc"]
+    assert perc.items["age"].accepts == (18, 110)
+    evaluate(perc, {"age": 18, "spo2": 100, "heart_rate": 250})
+    evaluate(perc, {"age": 110, "spo2": 50, "heart_rate": {"min": 20, "max": 250}})
+    evaluate(perc, {"heart_rate": {"min": 100}})  # an open bound stays open
+
+
+def test_accepted_range_is_per_calculator_and_in_the_schema():
+    # The same item can be accepted over different ranges: a child's age in a child's score.
+    assert CALCS["mcisaac"].items["age"].accepts is None
+    evaluate(CALCS["mcisaac"], {"age": 8})
+    items = {i["id"]: i for i in schema(CALCS["curb65"])["items"]}
+    assert items["urea"]["accepts"] == [1, 60]
+
+
+def test_site_normal_range_must_be_inside_the_accepted_range():
+    with pytest.raises(InputError, match="outside what 'curb65' accepts"):
+        evaluate(CURB, {"urea": "normal"}, normal_ranges={"urea": [2.5, 70]})
