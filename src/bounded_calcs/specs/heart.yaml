@@ -6,8 +6,8 @@ citation: >-
   Six AJ, Backus BE, Kelder JC. Chest pain in the emergency room: value of the HEART score.
   Neth Heart J 2008;16(6):191-196. doi:10.1007/BF03086144. PMID 18665203. [P]
 references:
-  - Backus BE et al. Crit Pathw Cardiol 2010;9(3):164-169. PMID 20802272. [A]
-  - Backus BE et al. Int J Cardiol 2013;168(3):2153-2158. PMID 23465250. [A]
+  - Backus BE et al. Crit Pathw Cardiol 2010;9(3):164-169. doi:10.1097/HPC.0b013e3181ec36d8. PMID 20802272. [P]
+  - Backus BE et al. Int J Cardiol 2013;168(3):2153-2158. doi:10.1016/j.ijcard.2013.01.255. PMID 23465250. [P]
   - Backus BE et al. Curr Cardiol Rev 2011;7(1):2-8. PMC3131711 (Table V). [P]
   - Poldervaart JM et al. BMC Cardiovasc Disord 2013;13:77. PMC3849098. [P]
 higher_is_higher_risk: true
@@ -16,6 +16,9 @@ notes:
   - Readings reviewed and accepted by the author, an emergency physician, on 2026-09-27
     (calc-bounds docs/CALCULATOR_NOTES.md). Item notes that start with the review marker give
     the reading implemented and the alternatives considered.
+  - "Source read 2026-11-12: Backus 2010 (PDF from the author) and Backus 2013 (publisher's
+    site) in full. Neither changes the scoring implemented. What each says on the reviewed
+    points is quoted in the item notes."
 
 items:
   - id: heart_history
@@ -34,6 +37,12 @@ items:
     notes:
       - "REVIEWED(physician): 2 points for significant ST deviation, depression or elevation
         (Six 2008 text, MDCalc). The Six 2008 table says ST depression only."
+      - "Source read 2026-11-12: Backus 2010 text gives 2 points for 'significant ST-segment
+        depressions or elevations in absence of a bundle branch block, left ventricular
+        hypertrophy, or the use of digoxin', and 1 point for repolarisation abnormalities
+        without significant ST deviation, bundle branch block, pacemaker rhythm, left
+        ventricular hypertrophy, probable digoxin effect, or unchanged known repolarisation
+        disturbances. The tables of Backus 2010 and 2013 say 'significant ST-depression'."
 
   - id: age
     label: Age
@@ -47,6 +56,9 @@ items:
       - "REVIEWED(physician): age 45 scores 1 point and age 65 scores 2 (Six 2008 text, '65 years
         or older'). Poldervaart 2013 gives 0 points at 45; the Six 2008 table prints '<= 65' for
         2 points, treated as a typo."
+      - "Source read 2026-11-12: Backus 2010 text: 0 points 'younger than 45 years', 1 point
+        '45 to 65 years', 2 points '65 years or older' (as implemented); its table and the
+        Backus 2013 table print '<= 45 year' for 0 points, which would give age 45 no point."
 
   - id: hypertension
     label: Diagnosed and/or treated hypertension
@@ -66,6 +78,7 @@ items:
     kind: finding
     notes:
       - "REVIEWED(physician): BMI > 30 (Poldervaart 2013); not defined in Six 2008."
+      - "Source read 2026-11-12: Backus 2010 also says 'obesity (body mass index > 30)'."
   - id: smoking
     label: Current smoker, or stopped within the last 3 months
     type: boolean
@@ -73,6 +86,7 @@ items:
     notes:
       - "REVIEWED(physician): stopped within 3 months still counts (MDCalc). Six 2008 says
         within 1 month."
+      - "Source read 2026-11-12: Backus 2010 says 'current or recent (< 90 days) smoker'."
   - id: family_history_cad
     label: Family history of coronary artery disease (first-degree relative before age 65)
     type: boolean
@@ -86,6 +100,8 @@ items:
     notes:
       - "REVIEWED(physician): TIA counts as atherosclerotic disease (MDCalc). Six 2008 lists
         revascularisation, MI, stroke and peripheral arterial disease."
+      - "Source read 2026-11-12: Backus 2010 lists coronary revascularisation, myocardial
+        infarction, stroke or peripheral arterial disease; TIA is not named."
 
   - id: heart_troponin
     label: Initial troponin relative to the assay's upper reference limit
@@ -98,6 +114,11 @@ items:
         times, following the validation cohorts (Backus 2010 and 2013, Poldervaart 2013). Six
         2008 used 1 to 2 times / more than 2 times. Exactly 3 times is the upper band in Backus
         2011 and Poldervaart and the middle band in MDCalc: decide when choosing the level."
+      - "Source read 2026-11-12: Backus 2010 text: below the threshold for positivity 0 points,
+        between 1 and 3 times the threshold 1 point, higher than 3 times 2 points; its table
+        says '>= 3x normal limit' for 2 points. Backus 2013 table: '<= normal limit' 0,
+        '> 1 to < 3x normal limit' 1, '>= 3x normal limit' 2. Only the first troponin value was
+        used, read against each hospital's own reference value."
       - The level is relative to the assay's upper reference limit. Converting a raw
         concentration needs that limit, so it is done by the caller, not here.
 

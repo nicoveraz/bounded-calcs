@@ -7,14 +7,19 @@ citation: >-
   patients probability of pulmonary embolism: increasing the models utility with the SimpliRED
   D-dimer. Thromb Haemost 2000;83(3):416-420. PMID 10744147. [A]
 references:
-  - van Belle A, et al. (Christopher Study). JAMA 2006;295(2):172-179. PMID 16403929 (two-tier cut-off). [A]
+  - van Belle A, et al. (Christopher Study). JAMA 2006;295(2):172-179. doi:10.1001/jama.295.2.172. PMID 16403929 (two-tier cut-off, Table 1). [P]
   - NICE guideline NG158, Table 2 (item wording). [S]
 higher_is_higher_risk: true
 notes:
   - Ported from calc-bounds (github.com/nicoveraz/calc-bounds), wells_pe.py.
   - Readings reviewed and accepted by the author, an emergency physician, on 2026-09-27
-    (calc-bounds docs/CALCULATOR_NOTES.md). The primary papers were read as abstracts only;
-    item wording follows NICE NG158.
+    (calc-bounds docs/CALCULATOR_NOTES.md), when the primary papers had been read as abstracts
+    only; item wording follows NICE NG158.
+  - "Source read 2026-11-12: van Belle 2006 in full (JAMA). Its Table 1 gives the seven items
+    with the points implemented here (3.0, 3.0, 1.5, 1.5, 1.5, 1.0, 1.0), 'heart rate > 100/min',
+    'immobilization (> 3 d) or surgery in the previous 4 wk', 'malignancy (receiving treatment,
+    treated in the last 6 mo or palliative)', and the cut-off 'unlikely: 4 or less points;
+    likely: more than 4 points'. Wells 2000 is still read as an abstract only."
   - Scores move in half-point steps, so "more than 4" starts at 4.5.
 
 items:

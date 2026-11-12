@@ -7,16 +7,19 @@ purpose: >-
 citation: >-
   Kline JA, Mitchell AM, Kabrhel C, Richman PB, Courtney DM. Clinical criteria to prevent
   unnecessary diagnostic testing in emergency department patients with suspected pulmonary
-  embolism. J Thromb Haemost 2004;2(8):1247-1255. PMID 15304025. [A]
+  embolism. J Thromb Haemost 2004;2(8):1247-1255. doi:10.1111/j.1538-7836.2004.00790.x. PMID 15304025. [P]
 references:
   - Kline JA, Courtney DM, Kabrhel C, et al. Prospective multicenter evaluation of the pulmonary
-    embolism rule-out criteria. J Thromb Haemost 2008;6(5):772-780. PMID 18318689. [A]
+    embolism rule-out criteria. J Thromb Haemost 2008;6(5):772-780. doi:10.1111/j.1538-7836.2008.02944.x. PMID 18318689. [P]
 higher_is_higher_risk: true
 notes:
   - Ported from calc-bounds (github.com/nicoveraz/calc-bounds), perc.py.
   - Readings reviewed and accepted by the author, an emergency physician, on 2026-09-27
-    (calc-bounds docs/CALCULATOR_NOTES.md). Both papers were read as abstracts only, so the
-    full-text variable definitions are unverified.
+    (calc-bounds docs/CALCULATOR_NOTES.md), when both papers had been read as abstracts only.
+  - "Source read 2026-11-12: both papers in full (publisher's open archive). The eight criteria
+    and their thresholds are as implemented: Kline 2008 asks whether the patient is older than
+    49 years, has a pulse above 99 /min, and has a pulse oximetry reading below 95% breathing
+    room air. The variable definitions of the two papers are quoted in the item notes."
   - "Applies only when gestalt pretest probability is low (< 15%, Kline 2008). That gate is a
     clinician judgment outside this calculator: a negative PERC means nothing without it."
   - The score is the number of criteria not met. "negative" means all eight criteria are met.
@@ -57,14 +60,22 @@ items:
         2026-09-27; it crosses no threshold of any calculator that uses this item."
       - "REVIEWED(physician): the criterion fails below 95% on room air (Kline 2008). The 2004
         abstract says the rule needs more than 94%."
+      - "Source read 2026-11-12: Kline 2004 full text also says 'pulse oximetry > 94%', with the
+        patient breathing room air; for whole-number readings that is the same as Kline 2008."
   - id: unilateral_leg_swelling
     label: Unilateral leg swelling
     type: boolean
     kind: finding
+    notes:
+      - Visual observation of asymmetry of the calves (Kline 2008); Kline 2004 examined them
+        with the legs raised by the heels off the bed.
   - id: hemoptysis
     label: Haemoptysis
     type: boolean
     kind: finding
+    notes:
+      - Kline 2004 defines it as the patient reporting coughing up any blood in the past week;
+        Kline 2008 asks for 'a present history of hemoptysis'.
   - id: recent_surgery_trauma
     label: Surgery or trauma within 4 weeks requiring hospitalisation
     type: boolean
@@ -72,16 +83,28 @@ items:
     notes:
       - "REVIEWED(physician): within 4 weeks and requiring hospitalisation (Kline 2008
         abstract). Some sources say requiring general anaesthesia."
+      - "TODO(physician-review): the label keeps the reviewed wording, 'requiring
+        hospitalisation'. The Kline 2008 full text says 'requiring endotracheal intubation or
+        hospitalization in the previous 4 weeks'; Kline 2004 (derivation) says 'surgery or
+        trauma requiring treatment with general anesthesia in the previous 4 weeks'. The
+        alternative is to add intubation or general anaesthesia to the label, which matters
+        only for day surgery under general anaesthesia without admission."
   - id: prior_vte
     label: Previous DVT or PE
     type: boolean
     kind: finding
+    notes:
+      - Kline 2004 defines it as a personal history of PE or DVT requiring treatment; Kline 2008
+        as a prior diagnosis of venous thromboembolism.
   - id: hormone_use
     label: Exogenous oestrogen use (oral contraceptives, hormone replacement)
     type: boolean
     kind: finding
     notes:
       - "REVIEWED(physician): exogenous oestrogen. The 2004 abstract says 'hormone use'."
+      - "Source read 2026-11-12: Kline 2004 full text defines hormone use as 'oral
+        contraceptives, hormone replacement or estrogenic hormones use in males or female
+        patients'; Kline 2008 asks 'is the patient taking exogenous estrogen?'."
 
 components:
   - id: age

@@ -18,9 +18,9 @@ message with `Closes #N`.
 
 | id | Calculator | Sources | Review | Open TODOs |
 |---|---|---|---|---|
-| `heart` | HEART score | [P] Six 2008; [A] Backus 2010, 2013; [P] Backus 2011, Poldervaart 2013 | reviewed 2026-09-27 (calc-bounds) | 1 |
-| `wells_pe` | Wells criteria for PE, two-tier | [A] Wells 2000; [A] van Belle 2006; [S] NICE NG158 | reviewed 2026-09-27 (calc-bounds) | 0 |
-| `perc` | PERC rule | [A] Kline 2004; [A] Kline 2008 | reviewed 2026-09-27 (calc-bounds) | 1 |
+| `heart` | HEART score | [P] Six 2008; [P] Backus 2010, 2013; [P] Backus 2011, Poldervaart 2013 | reviewed 2026-09-27 (calc-bounds) | 1 |
+| `wells_pe` | Wells criteria for PE, two-tier | [A] Wells 2000; [P] van Belle 2006; [S] NICE NG158 | reviewed 2026-09-27 (calc-bounds) | 0 |
+| `perc` | PERC rule | [P] Kline 2004; [P] Kline 2008 | reviewed 2026-09-27 (calc-bounds) | 2 |
 | `curb65` | CURB-65 | [P] Lim 2003 | reviewed 2026-09-27 (calc-bounds) | 1 |
 | `qsofa` | qSOFA | [A] Seymour 2016; [P] Singer 2016 (Sepsis-3) | reviewed 2026-09-27 (calc-bounds) | 0 |
 | `pecarn_head_under2` | PECARN head injury rule, under 2 years | [P] Kuppermann 2009 and 2014 erratum | open readings confirmed 2026-11-10 | 0 |
