@@ -34,7 +34,6 @@ message with `Closes #N`.
 | `meld_na` | MELD-Na, 2008 formula (formula, score only) | [P] Kim 2008 | version chosen 2026-11-11; rest not yet reviewed | 5 |
 | `canadian_ct_head` | Canadian CT Head Rule | [P] Stiell 2001 (panel 1 and methods) | not yet reviewed | 1 |
 | `has_bled` | HAS-BLED | [P] Pisters 2010 (methods and table 2); cut-off [S] ESC 2010 guideline | not yet reviewed | 4 |
-| `cha2ds2_vasc` | CHA2DS2-VASc | [P] Lip 2010 (table 2 and methods) | not yet reviewed | 2 |
 | `cha2ds2_va` | CHA2DS2-VA | [P] ESC 2024 guideline (Table 10 and the text after it) | not yet reviewed | 2 |
 | `sf_syncope` | San Francisco Syncope Rule | [P] Quinn 2004 (abstract and results) | not yet reviewed | 1 |
 | `cincinnati_stroke` | Cincinnati Prehospital Stroke Scale | [P] Kothari 1999 (abstract and figure) | not yet reviewed | 1 |
@@ -50,10 +49,6 @@ physician, as recorded in `docs/CALCULATOR_NOTES.md` of `nicoveraz/calc-bounds`.
 
 **Open (needs Nicolás)**
 
-- **CHA2DS2-VASc categories ([#5](https://github.com/nicoveraz/bounded-calcs/issues/5)).** Built with the 2010 paper's own categories (0 low, 1
-  intermediate, 2 or more high) although the earlier decision was to wait. Nicolás will
-  decide after comparing with other references; until then the spec carries a
-  `TODO(physician-review)` note.
 - **NIHSS version ([#31](https://github.com/nicoveraz/bounded-calcs/issues/31))**: the 1989 original (readable) or the current NINDS form.
 - **West Haven version ([#43](https://github.com/nicoveraz/bounded-calcs/issues/43))**: Conn 1977 (only a scan found) or the 2014 guideline.
 - **Ranson version ([#47](https://github.com/nicoveraz/bounded-calcs/issues/47))**: which aetiology, or both.
@@ -62,6 +57,11 @@ physician, as recorded in `docs/CALCULATOR_NOTES.md` of `nicoveraz/calc-bounds`.
 
 **Decided**
 
+- **CHA2DS2-VASc replaced by CHA2DS2-VA ([#5](https://github.com/nicoveraz/bounded-calcs/issues/5)), 2026-11-12.** The 2010 paper's categories
+  (0 low, 1 intermediate, 2 or more high) count the point for female sex, so a woman with no
+  other risk factor comes out as intermediate; the 2024 ESC guideline uses the score without
+  a sex criterion. `cha2ds2_vasc` was removed; `cha2ds2_va`
+  follows the 2024 ESC guideline (no sex criterion; consider at 1, recommended at 2 or more).
 - 2026-11-10: Wells DVT two-tier; McIsaac for sore throat; PECARN head rules as two
   calculators by age; urea normal range 2.5 to 8 mmol/L; PyPI, no npm package.
 - 2026-11-11: MELD-Na stays the 2008 formula. Dose-type calculators (Parkland) are allowed,

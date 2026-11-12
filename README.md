@@ -58,7 +58,6 @@ Python 3.11 or later. The MCP server can also run without installing anything fi
 | `meld_na` | MELD-Na, 2008 formula (score 6 to 40, no categories) | Kim et al., N Engl J Med 2008. PMID 18768945 | [P] |
 | `canadian_ct_head` | Canadian CT Head Rule (no criterion / medium risk / high risk) | Stiell et al., Lancet 2001. PMID 11356436 | [P] |
 | `has_bled` | HAS-BLED (not high risk / high risk) | Pisters et al., Chest 2010. PMID 20299623; cut-off from the 2010 ESC guideline | [P], [S] |
-| `cha2ds2_vasc` | CHA2DS2-VASc (low / intermediate / high) | Lip et al., Chest 2010. PMID 19762550 | [P] |
 | `cha2ds2_va` | CHA2DS2-VA (score 0 / 1 / 2 or more) | 2024 ESC atrial fibrillation guideline, Eur Heart J 2024. doi:10.1093/eurheartj/ehae176 | [P] |
 | `sf_syncope` | San Francisco Syncope Rule (negative / positive) | Quinn et al., Ann Emerg Med 2004. PMID 14747812 | [P] |
 | `cincinnati_stroke` | Cincinnati Prehospital Stroke Scale (all normal / any abnormal) | Kothari et al., Ann Emerg Med 1999. PMID 10092713 | [P] |
