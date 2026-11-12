@@ -216,7 +216,11 @@ The units a site's laboratory reports are set the same way, with `--units units.
 From a clone of this repository, use `"command": "uv"` with
 `"args": ["--directory", "/path/to/bounded-calcs", "run", "bounded-calcs-mcp"]`.
 
-Tools: `list_calculators`, `get_schema(calculator_id)`, `evaluate(calculator_id, findings)`.
+Tools: `list_calculators`, `get_schema(calculator_id, detail)`,
+`evaluate(calculator_id, findings, detail)`. Both answer in a brief form by default, to keep a
+model's context small: the schema without citations, provenance and review notes, the result
+without the per-component breakdown. `detail="full"` returns everything. The Python functions
+`schema()` and `evaluate()` always return everything.
 The server's instructions tell the model to send only documented findings, ask about
 decisive unknowns, and never fill judgment items itself.
 
