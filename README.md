@@ -64,6 +64,7 @@ Python 3.11 or later. The MCP server can also run without installing anything fi
 | `rox` | ROX index (formula, no categories) | Roca et al., J Crit Care 2016, PMID 27481760; Am J Respir Crit Care Med 2019, PMID 30576221 | [P] |
 | `killip` | Killip classification (A to D) | Killip and Kimball, Am J Cardiol 1967. PMID 6059183 | [P] |
 | `parkland` | Parkland formula (a volume, no categories) | Baxter and Shires, Ann N Y Acad Sci 1968. PMID 4973463 | [P] |
+| `glasgow_blatchford` | Glasgow-Blatchford bleeding score (score only) | Blatchford et al., Lancet 2000. PMID 11073021 | [P] |
 
 Verified: **[P]** primary full text read, **[A]** abstract only, **[S]** secondary source
 (guideline or later paper). All four are ported from calc-bounds, whose readings the author

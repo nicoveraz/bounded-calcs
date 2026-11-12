@@ -40,6 +40,7 @@ message with `Closes #N`.
 | `rox` | ROX index (formula, score only) | [P] Roca 2016 and Roca 2019 (definition and cut-off sentences) | not yet reviewed | 2 |
 | `killip` | Killip classification | [P] Killip and Kimball 1967 (the paragraph defining the groups) | not yet reviewed | 1 |
 | `parkland` | Parkland formula (formula, a volume) | [P] Baxter and Shires 1968 (patient studies passage) | not yet reviewed | 3 |
+| `glasgow_blatchford` | Glasgow-Blatchford bleeding score (score only) | [P] Blatchford 2000 (Table 1, read from the page image) | not yet reviewed | 3 |
 
 "Reviewed (calc-bounds)" means the readings were accepted by the author, an emergency
 physician, as recorded in `docs/CALCULATOR_NOTES.md` of `nicoveraz/calc-bounds`.
@@ -88,7 +89,6 @@ Central; **readable on the publisher's site** means the full article opened in t
 | [#31](https://github.com/nicoveraz/bounded-calcs/issues/31) | NIH Stroke Scale | score-only (done); version to choose | original 1989 scale readable on the publisher's site; current form to locate |
 | [#40](https://github.com/nicoveraz/bounded-calcs/issues/40) | Killip classification | probably, with groups | PDF received 2026-11-11 |
 | [#43](https://github.com/nicoveraz/bounded-calcs/issues/43) | West Haven criteria | probably, with groups; version to choose | 2014 guideline readable on the publisher's site; 1977 original needs PDF |
-| [#36](https://github.com/nicoveraz/bounded-calcs/issues/36) | Glasgow-Blatchford | yes, with `bands_by` (haemoglobin by sex): **ready** once the table is read | PDF received 2026-11-11; the table's inequality signs must be read from the page image |
 | [#41](https://github.com/nicoveraz/bounded-calcs/issues/41) | ROX index | formula (done): **ready** | PDFs received 2026-11-11 |
 | [#44](https://github.com/nicoveraz/bounded-calcs/issues/44) | AKIN staging | partly: `combine: highest` gives the stage; the creatinine ratio has to be an item, since the engine does not divide inside an additive calculator | PMC |
 | [#38](https://github.com/nicoveraz/bounded-calcs/issues/38) | KDIGO AKI staging | no: the same | guideline free on kdigo.org |
