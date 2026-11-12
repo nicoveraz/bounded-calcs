@@ -74,6 +74,9 @@ class Component:
     override: str | None = None  # count
     override_points: float | None = None  # count
     conditions: dict[str, Band] = field(default_factory=dict)  # any_of: numeric item -> "met"
+    by_bands: dict[str, tuple[Band, ...]] = field(default_factory=dict)  # bands_by: level -> table
+    # bands_by: level -> the points of its table in each band of `bands` (all thresholds merged)
+    by_points: dict[str, tuple[float, ...]] = field(default_factory=dict)
     group: str | None = None
 
 
@@ -111,6 +114,9 @@ class Calculator:
     categories: tuple[Category, ...]
     notes: tuple[str, ...]
     groups: tuple[str, ...] = ()  # component groups, in order of first use
+    # How component points become the score: "sum", or "highest" (the stage is the highest
+    # that any criterion gives, as in staging systems).
+    combine: str = "sum"
     formula: Formula | None = None  # set for a formula calculator, which has no components
 
     def category(self, score: float, group_points: Sequence[float] = ()) -> Category:
@@ -148,10 +154,9 @@ class Calculator:
         if self.formula is not None:  # a formula uses the number itself: one band, everything
             return (Band(None, None, 0.0),)
         comp = self.component_of(item_id)
-        if comp.rule == "bands":
-            return comp.bands
-        met = comp.conditions[item_id]
-        return (met, Band(None, None, 0.0))
+        if item_id in comp.conditions:
+            return (comp.conditions[item_id], Band(None, None, 0.0))
+        return comp.bands  # bands; bands_by (the thresholds of every table, merged)
 
 
 def band_probes(bands: Sequence[Band]) -> list[float]:

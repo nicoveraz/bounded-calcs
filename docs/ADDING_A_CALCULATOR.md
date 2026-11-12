@@ -78,10 +78,34 @@ means. Never take a cut-off from a website or from memory. If no such source can
 the calculator stays score-only. In its test file the reference returns
 `(score, None)`, and the sparse-note test asserts the score range instead of the categories.
 
+Two more things fit:
+
+- **Points of a number that depend on a category** (haemoglobin scored differently for men and
+  women): rule `bands_by`, with `item` (numeric), `by` (an ordinal item) and one band table
+  per level of `by`. Every level needs its table. The engine knows that an unknown `by` item
+  matters only where the tables differ.
+
+  ```
+  - id: haemoglobin
+    label: Haemoglobin
+    rule: bands_by
+    item: haemoglobin
+    by: sex
+    bands:
+      male: [{gte: 13, points: 0}, {gte: 12, points: 1}, {gte: 10, points: 3}, {points: 6}]
+      female: [{gte: 12, points: 0}, {gte: 10, points: 1}, {points: 6}]
+  ```
+
+- **A stage that is the highest any criterion gives** (not a sum): put `combine: highest` at
+  the top level. Each criterion is a component whose points are the stage it gives; points
+  cannot be negative; groups cannot be used. In the reference function use `max(...)`.
+
 It does **not** fit, and you must stop, if:
 
 - one item would feed two components (for example the same blood pressure in two criteria);
 - a category depends on something that groups of components cannot express (see "Groups");
+- a criterion needs arithmetic on two items (a ratio to a baseline value) inside a calculator
+  with points;
 - the score mixes points and a formula (a number added to a sum of points), or its formula
   does not move in one direction with some input (see "Formulas");
 - points are not whole or half numbers.

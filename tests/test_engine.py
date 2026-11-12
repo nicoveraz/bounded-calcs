@@ -785,3 +785,160 @@ def test_unit_labels_are_in_the_schema():
         "bun_mg/dL": "urea nitrogen (BUN) in mg/dL",
         "urea_mg/dL": "urea (not urea nitrogen) in mg/dL",
     }
+
+
+# --- bands_by: the band table of a numeric item depends on an ordinal item ---------------------
+
+BY = {
+    "id": "toy_by",
+    "name": "Toy",
+    "citation": "None",
+    "items": [
+        item("hb", "numeric", "measurement", unit="g/dL", accepts=[2, 25]),
+        item("sex", "ordinal", levels=["male", "female"]),
+        item("melaena", "boolean"),
+    ],
+    "components": [
+        {
+            "id": "hb", "label": "Haemoglobin", "rule": "bands_by", "item": "hb", "by": "sex",
+            "bands": {
+                "male": [{"gte": 13, "points": 0}, {"gte": 12, "points": 1},
+                         {"gte": 10, "points": 3}, {"points": 6}],
+                "female": [{"gte": 12, "points": 0}, {"gte": 10, "points": 1}, {"points": 6}],
+            },
+        },
+        {"id": "melaena", "label": "Melaena", "rule": "present", "item": "melaena", "points": 1},
+    ],
+    "categories": [{"name": "low", "label": "0"}, {"name": "not_low", "label": ">= 1", "min": 1}],
+}  # fmt: skip
+
+
+def by_reference(v):
+    hb, male = v["hb"], v["sex"] == "male"
+    if male:
+        points = 0 if hb >= 13 else 1 if hb >= 12 else 3 if hb >= 10 else 6
+    else:
+        points = 0 if hb >= 12 else 1 if hb >= 10 else 6
+    score = points + (1 if v["melaena"] else 0)
+    return score, "not_low" if score >= 1 else "low"
+
+
+def test_bands_by_matches_reference_on_complete_and_partial_inputs():
+    counts = assert_matches_reference(parse(BY), by_reference)
+    assert counts["complete_inputs"] > 0 and counts["partial_inputs"] > 0
+
+
+def test_bands_by_bounds_by_hand():
+    calc = parse(BY)
+    # Haemoglobin 12.5 without the sex: 1 point if male, 0 if female. With no melaena the sex
+    # decides the category, and it is the only question.
+    r = evaluate(calc, {"hb": 12.5, "melaena": False})
+    assert r["score_range"] == [0, 1] and r["possible_categories"] == ["low", "not_low"]
+    assert [d["item"] for d in r["decisive_unknowns"]] == ["sex"]
+    # Haemoglobin 14: no points for either sex, so the sex cannot matter.
+    r = evaluate(calc, {"hb": 14, "melaena": False})
+    assert r["settled"] and r["category"] == "low" and r["irrelevant_unknowns"] == ["sex"]
+    # Female, haemoglobin known only as 10 to 13: 0 or 1 point (never the 3 of the male table).
+    r = evaluate(calc, {"sex": "female", "hb": {"min": 10, "max": 13}, "melaena": True})
+    assert r["score_range"] == [1, 2] and r["settled"]
+    # Nothing known: the lowest and highest of both tables.
+    assert evaluate(calc, {})["score_range"] == [0, 7]
+
+
+def test_bands_by_schema_and_spec_mistakes():
+    import copy
+
+    from bounded_calcs import SpecError
+
+    comp = schema(parse(BY))["components"][0]
+    assert comp["by"] == "sex" and set(comp["bands"]) == {"male", "female"}
+    assert comp["bands"]["female"][0] == {"when": ">= 12 g/dL", "points": 0}
+
+    def broken(change):
+        data = copy.deepcopy(BY)
+        change(data["components"][0])
+        return data
+
+    with pytest.raises(SpecError, match="exactly the levels of 'sex'"):
+        parse(broken(lambda c: c["bands"].pop("female")))
+    with pytest.raises(SpecError, match="must be ordinal"):
+        parse(broken(lambda c: c.update(by="melaena")))
+    with pytest.raises(SpecError, match="bands for 'male'.*can never apply"):
+        parse(broken(lambda c: c["bands"]["male"].reverse() or c["bands"]["male"].append(
+            c["bands"]["male"].pop(0))))
+    with pytest.raises(SpecError, match="outside 'accepts'"):
+        parse(broken(lambda c: c["bands"]["female"][0].update(gte=40)))
+
+
+# --- combine: highest (the stage is the highest any criterion gives) ---------------------------
+
+STAGE = {
+    "id": "toy_stage",
+    "name": "Toy",
+    "citation": "None",
+    "combine": "highest",
+    "items": [
+        item("ratio", "numeric", "measurement", unit="times baseline", accepts=[0.1, 50]),
+        item("urine", "ordinal", levels=["normal", "low_6h", "low_12h", "anuria"]),
+        item("dialysis", "boolean"),
+    ],
+    "components": [
+        {"id": "ratio", "label": "Ratio", "rule": "bands", "item": "ratio",
+         "bands": [{"gte": 3, "points": 3}, {"gte": 2, "points": 2}, {"gte": 1.5, "points": 1},
+                   {"points": 0}]},
+        {"id": "urine", "label": "Urine", "rule": "levels", "item": "urine",
+         "points": {"normal": 0, "low_6h": 1, "low_12h": 2, "anuria": 3}},
+        {"id": "dialysis", "label": "Dialysis", "rule": "present", "item": "dialysis", "points": 3},
+    ],
+    "categories": [
+        {"name": "none", "label": "No stage"},
+        {"name": "stage_1", "label": "1", "min": 1},
+        {"name": "stage_2", "label": "2", "min": 2},
+        {"name": "stage_3", "label": "3", "min": 3},
+    ],
+}  # fmt: skip
+
+
+def stage_reference(v):
+    by_ratio = 3 if v["ratio"] >= 3 else 2 if v["ratio"] >= 2 else 1 if v["ratio"] >= 1.5 else 0
+    by_urine = ["normal", "low_6h", "low_12h", "anuria"].index(v["urine"])
+    stage = max(by_ratio, by_urine, 3 if v["dialysis"] else 0)
+    return stage, "none" if stage == 0 else f"stage_{stage}"
+
+
+def test_highest_matches_reference_on_complete_and_partial_inputs():
+    counts = assert_matches_reference(parse(STAGE), stage_reference)
+    assert counts["complete_inputs"] > 0 and counts["partial_inputs"] > 0
+
+
+def test_highest_bounds_by_hand():
+    calc = parse(STAGE)
+    # Ratio 2.4 gives stage 2. Urine and dialysis can only raise it, to 3.
+    r = evaluate(calc, {"ratio": 2.4})
+    assert r["score_range"] == [2, 3] and r["possible_categories"] == ["stage_2", "stage_3"]
+    assert {d["item"] for d in r["decisive_unknowns"]} == {"urine", "dialysis"}
+    # On dialysis: stage 3 whatever the rest, which nobody needs to ask.
+    r = evaluate(calc, {"dialysis": True})
+    assert r["settled"] and r["score"] == 3 and r["category"] == "stage_3"
+    assert set(r["irrelevant_unknowns"]) == {"ratio", "urine"}
+    # A sum would give 2 + 2 = 4 here; the highest is 2.
+    r = evaluate(calc, {"ratio": 2.4, "urine": "low_12h", "dialysis": False})
+    assert r["score"] == 2 and r["category"] == "stage_2"
+    assert schema(calc)["score_is"] == "the highest number of points any component gives"
+
+
+def test_highest_spec_mistakes():
+    import copy
+
+    from bounded_calcs import SpecError
+
+    with pytest.raises(SpecError, match="combine must be 'sum' or 'highest'"):
+        parse({**copy.deepcopy(STAGE), "combine": "max"})
+    negative = copy.deepcopy(STAGE)
+    negative["components"][2]["points"] = -1
+    with pytest.raises(SpecError, match="points of 0 or more"):
+        parse(negative)
+    grouped = copy.deepcopy(STAGE)
+    grouped["components"][0]["group"] = "g"
+    with pytest.raises(SpecError, match="cannot be used with groups"):
+        parse(grouped)

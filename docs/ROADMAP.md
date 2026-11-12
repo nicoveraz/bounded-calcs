@@ -88,9 +88,9 @@ Central; **readable on the publisher's site** means the full article opened in t
 | [#31](https://github.com/nicoveraz/bounded-calcs/issues/31) | NIH Stroke Scale | score-only (done); version to choose | original 1989 scale readable on the publisher's site; current form to locate |
 | [#40](https://github.com/nicoveraz/bounded-calcs/issues/40) | Killip classification | probably, with groups | PDF received 2026-11-11 |
 | [#43](https://github.com/nicoveraz/bounded-calcs/issues/43) | West Haven criteria | probably, with groups; version to choose | 2014 guideline readable on the publisher's site; 1977 original needs PDF |
-| [#36](https://github.com/nicoveraz/bounded-calcs/issues/36) | Glasgow-Blatchford | no: haemoglobin points differ for men and women (engine item 8) | PDF received 2026-11-11; the table's inequality signs must be read from the page image |
+| [#36](https://github.com/nicoveraz/bounded-calcs/issues/36) | Glasgow-Blatchford | yes, with `bands_by` (haemoglobin by sex): **ready** once the table is read | PDF received 2026-11-11; the table's inequality signs must be read from the page image |
 | [#41](https://github.com/nicoveraz/bounded-calcs/issues/41) | ROX index | formula (done): **ready** | PDFs received 2026-11-11 |
-| [#44](https://github.com/nicoveraz/bounded-calcs/issues/44) | AKIN staging | no: highest of several criteria, from ratios | PMC |
+| [#44](https://github.com/nicoveraz/bounded-calcs/issues/44) | AKIN staging | partly: `combine: highest` gives the stage; the creatinine ratio has to be an item, since the engine does not divide inside an additive calculator | PMC |
 | [#38](https://github.com/nicoveraz/bounded-calcs/issues/38) | KDIGO AKI staging | no: the same | guideline free on kdigo.org |
 | [#48](https://github.com/nicoveraz/bounded-calcs/issues/48) | Parkland formula | formula (done): **ready**, as a number only (decided 2026-11-11) | PDF received 2026-11-11 (Baxter 1968) |
 | [#48](https://github.com/nicoveraz/bounded-calcs/issues/48) | Rule of nines, Lund and Browder | partly: a partly burned region needs a fraction; burn size feeding Parkland is not supported | Wallace 1951 PDF received; Lund and Browder 1944 not located |
@@ -201,9 +201,14 @@ These change the engine or the input format, so they are not for unattended work
 7. ~~Score-only calculators~~: done. A spec without `categories` returns the score and its
    range; needed for scales such as NIHSS ([#31](https://github.com/nicoveraz/bounded-calcs/issues/31)).
 
-8. **Points that depend on another item** (open part of [#12](https://github.com/nicoveraz/bounded-calcs/issues/12)): Glasgow-Blatchford, Lund
-   and Browder, Ranson by aetiology. Not started.
-9. **Highest of several criteria** as the result (KDIGO, AKIN). Not started.
+8. ~~Points that depend on another item~~ (part of [#12](https://github.com/nicoveraz/bounded-calcs/issues/12)): done for the common case.
+   Rule `bands_by`: a numeric item with one band table per level of an ordinal item
+   (Glasgow-Blatchford haemoglobin by sex). Not covered: a yes/no item whose points depend on
+   another item, and whole sets of cut-offs chosen by one item (Ranson by aetiology, Lund and
+   Browder by age), which are better written as separate calculators.
+9. ~~Highest of several criteria~~: done. `combine: highest` at the top level makes the score
+   the highest number of points any component gives (KDIGO, AKIN stages). Not covered: the
+   creatinine ratio itself, which the caller has to supply as an item (see item 10).
 10. **A formula inside a sum of points** (PESI's age) and **one calculator feeding another**
     (burn size into fluid volume). Not started.
 

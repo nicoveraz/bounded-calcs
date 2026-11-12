@@ -45,6 +45,9 @@ Component rules:
   any_of    {conditions: [{item} | {item, gte|gt|lte|lt: x}, ...], points}
             points if any condition is met: a boolean item present, or a numeric item
             meeting its threshold (e.g. CURB-65 "SBP < 90 or DBP <= 60")
+  bands_by  {item, by, bands: {<level>: [bands as above], ...}}
+            a numeric `item` whose band table depends on the level of the ordinal item `by`
+            (haemoglobin scored by sex): one table per level, every level listed
 
 Points may be negative. They must be whole or half numbers so that sums stay exact.
 
@@ -62,6 +65,10 @@ The first category has no condition.
 Formula calculators: instead of `components`, a spec may have a `formula` (an expression on
 the items; see `formula.py`). Its numeric items must declare `accepts`, which bounds the
 result while an item is unknown. Categories, if any, are cut-offs on the result.
+
+Staging systems: with `combine: highest` at the top level the score is the highest number of
+points any component gives, not their sum (the stage is the highest that any criterion
+reaches). Points must be 0 or more, and groups cannot be used with it.
 
 Score-only calculators: `categories` may be left out when the source gives a score and no
 decision categories (a severity scale). The result is then the score: it is settled when the
@@ -135,7 +142,7 @@ RULE_TYPES = set(RULES)
 
 _TOP_KEYS = {
     "id", "name", "version", "purpose", "citation", "references", "higher_is_higher_risk",
-    "notes", "items", "components", "categories", "formula",
+    "notes", "items", "components", "categories", "formula", "combine",
 }  # fmt: skip
 _ITEM_KEYS = {
     "id", "label", "type", "kind", "levels", "unit", "units", "normal", "accepts", "question",
@@ -278,7 +285,7 @@ def _components(data: dict[str, Any], where: str, items: dict[str, Item]) -> lis
         if item.accepts is None or item.id not in owner:
             continue
         comp = next(c for c in components if item.id in c.items)
-        bands = comp.bands if comp.rule == "bands" else (comp.conditions[item.id],)
+        bands = (comp.conditions[item.id],) if item.id in comp.conditions else comp.bands
         for b in bands:
             if b.value is not None and not item.accepts[0] <= b.value <= item.accepts[1]:
                 raise SpecError(
@@ -377,6 +384,14 @@ def _check_every_category_can_be_reached(calc: Calculator, where: str) -> None:
         )
 
 
+def _all_points(comp: Component) -> list[float]:
+    """Every number of points a component can give, whatever its rule."""
+    out = [b.points for b in comp.bands] + list(comp.level_points.values())
+    out += [p for table in comp.by_points.values() for p in table]
+    out += [p for p in (comp.points, comp.override_points) if p is not None]
+    return out
+
+
 def parse(data: Any) -> Calculator:
     """Build a Calculator from the mapping a YAML spec loads into, or raise SpecError."""
     _only(data, _TOP_KEYS, "spec")
@@ -400,6 +415,23 @@ def parse(data: Any) -> Calculator:
     if not isinstance(higher, bool):
         raise SpecError(f"{where}: higher_is_higher_risk must be true or false")
 
+    combine = data.get("combine", "sum")
+    if combine not in ("sum", "highest"):
+        raise SpecError(f"{where}: combine must be 'sum' or 'highest', got {combine!r}")
+    if combine == "highest":
+        if formula:
+            raise SpecError(f"{where}: combine does not apply to a formula calculator")
+        if groups:
+            raise SpecError(f"{where}: combine: highest cannot be used with groups")
+        low = min(
+            (p for c in components for p in _all_points(c)), default=0.0
+        )
+        if low < 0:
+            raise SpecError(
+                f"{where}: combine: highest needs points of 0 or more in every component "
+                "(the score starts at 0, the stage with no criterion met)"
+            )
+
     calc = Calculator(
         id=cid,
         name=_text(_req(data, "name", where), where, "name"),
@@ -413,6 +445,7 @@ def parse(data: Any) -> Calculator:
         categories=tuple(categories),
         notes=_texts(data.get("notes", []), where, "notes"),
         groups=groups,
+        combine=combine,
         formula=formula,
     )
     _check_every_category_can_be_reached(calc, where)
