@@ -35,6 +35,7 @@ message with `Closes #N`.
 | `canadian_ct_head` | Canadian CT Head Rule | [P] Stiell 2001 (panel 1 and methods) | not yet reviewed | 1 |
 | `has_bled` | HAS-BLED | [P] Pisters 2010 (methods and table 2); cut-off [S] ESC 2010 guideline | not yet reviewed | 4 |
 | `cha2ds2_vasc` | CHA2DS2-VASc | [P] Lip 2010 (table 2 and methods) | not yet reviewed | 2 |
+| `cha2ds2_va` | CHA2DS2-VA | [P] ESC 2024 guideline (Table 10 and the text after it) | not yet reviewed | 2 |
 | `sf_syncope` | San Francisco Syncope Rule | [P] Quinn 2004 (abstract and results) | not yet reviewed | 1 |
 | `cincinnati_stroke` | Cincinnati Prehospital Stroke Scale | [P] Kothari 1999 (abstract and figure) | not yet reviewed | 1 |
 | `rox` | ROX index (formula, score only) | [P] Roca 2016 and Roca 2019 (definition and cut-off sentences) | not yet reviewed | 2 |

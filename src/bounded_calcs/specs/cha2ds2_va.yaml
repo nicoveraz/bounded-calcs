@@ -1,0 +1,103 @@
+id: cha2ds2_va
+name: CHA2DS2-VA thromboembolic risk score
+version: 1
+purpose: >-
+  Thromboembolic risk in adults with atrial fibrillation, without a sex criterion, as used by
+  the 2024 ESC guideline to decide on oral anticoagulation.
+citation: >-
+  Van Gelder IC, Rienstra M, Bunting KV, et al. 2024 ESC Guidelines for the management of
+  atrial fibrillation developed in collaboration with the European Association for
+  Cardio-Thoracic Surgery (EACTS). Eur Heart J 2024;45(36):3314-3414.
+  doi:10.1093/eurheartj/ehae176. Table 10 (definitions and points) and the text after it
+  (thresholds). [P]
+higher_is_higher_risk: true
+notes:
+  - "Points (ESC 2024, Table 10): chronic heart failure 1; hypertension 1; age 75 years or
+    more 2; diabetes mellitus 1; prior stroke, TIA or arterial thromboembolism 2; vascular
+    disease 1; age 65 to 74 years 1. Maximum 8. The score has no birth sex or gender
+    criterion."
+  - "Categories follow the guideline's text after Table 10: oral anticoagulation is
+    recommended with a score of 2 or more, and should be considered with a score of 1,
+    following a patient-centred and shared care approach."
+  - "TODO(physician-review): the parts read state no recommendation for a score of 0; the
+    category is named 'score_0' and says only that. The alternative is a label saying oral
+    anticoagulation is not recommended, which needs the sentence or recommendation table
+    that states it."
+  - "The guideline's footnote to Table 10 says other markers that modify the risk of stroke
+    and thromboembolism should be considered (cancer, chronic kidney disease, ethnicity,
+    biomarkers, and in specific groups atrial enlargement, hyperlipidaemia, smoking and
+    obesity). They are not part of the score."
+  - "Source read 2026-11-12: the guideline's full text on the publisher's site, through a
+    text extraction of the page (the tables were not seen as images). Recommendation Table 6,
+    with the class and level of each recommendation, was not in the parts read."
+
+items:
+  - id: chronic_heart_failure
+    label: >-
+      Chronic heart failure: symptoms and signs of heart failure irrespective of LVEF, or
+      asymptomatic LVEF of 40% or less
+    type: boolean
+    kind: finding
+  - id: hypertension
+    label: >-
+      Hypertension: resting blood pressure above 140/90 mmHg on at least two occasions, or
+      current antihypertensive treatment
+    type: boolean
+    kind: finding
+  - id: age
+    label: Age
+    type: numeric
+    kind: measurement
+    unit: years
+    accepts: [18, 110]
+    notes:
+      - Accepted range taken from calc-bounds (docs/CALCULATOR_NOTES.md, parameter modelling choices).
+      - "TODO(physician-review): ages below 18 are rejected (18 to 110 years, the range the
+        other adult calculators use); the parts read state no age range."
+  - id: diabetes
+    label: >-
+      Diabetes mellitus (type 1 or type 2) by currently accepted criteria, or treatment with
+      glucose-lowering therapy
+    type: boolean
+    kind: finding
+  - id: prior_stroke_tia_or_thromboembolism
+    label: Prior stroke, transient ischaemic attack or arterial thromboembolism
+    type: boolean
+    kind: finding
+  - id: vascular_disease
+    label: >-
+      Vascular disease: coronary artery disease (prior myocardial infarction, angina,
+      coronary revascularisation, or significant disease on angiography or cardiac imaging)
+      or peripheral vascular disease (intermittent claudication, previous revascularisation
+      for it, percutaneous or surgical intervention on the abdominal aorta, or complex aortic
+      plaque on imaging)
+    type: boolean
+    kind: finding
+    notes:
+      - Complex aortic plaque is defined in Table 10 by mobility, ulceration, pedunculation or
+        a thickness of 4 mm or more.
+
+components:
+  - {id: heart_failure, label: Chronic heart failure, rule: present, item: chronic_heart_failure, points: 1}
+  - {id: hypertension, label: Hypertension, rule: present, item: hypertension, points: 1}
+  - id: age
+    label: Age >= 75 y (2) or 65-74 y (1)
+    rule: bands
+    item: age
+    bands:
+      - {gte: 75, points: 2}
+      - {gte: 65, points: 1}
+      - {points: 0}
+  - {id: diabetes, label: Diabetes mellitus, rule: present, item: diabetes, points: 1}
+  - {id: stroke, label: Prior stroke/TIA/arterial thromboembolism, rule: present, item: prior_stroke_tia_or_thromboembolism, points: 2}
+  - {id: vascular_disease, label: Vascular disease, rule: present, item: vascular_disease, points: 1}
+
+categories:
+  - name: score_0
+    label: Score 0 (no criterion of the score met)
+  - name: score_1
+    label: "Score 1: oral anticoagulation should be considered (ESC 2024)"
+    min: 1
+  - name: score_2_or_more
+    label: "Score 2 or more: oral anticoagulation is recommended (ESC 2024)"
+    min: 2
