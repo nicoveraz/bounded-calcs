@@ -61,6 +61,9 @@ Python 3.11 or later. The MCP server can also run without installing anything fi
 | `cha2ds2_vasc` | CHA2DS2-VASc (low / intermediate / high) | Lip et al., Chest 2010. PMID 19762550 | [P] |
 | `sf_syncope` | San Francisco Syncope Rule (negative / positive) | Quinn et al., Ann Emerg Med 2004. PMID 14747812 | [P] |
 | `cincinnati_stroke` | Cincinnati Prehospital Stroke Scale (all normal / any abnormal) | Kothari et al., Ann Emerg Med 1999. PMID 10092713 | [P] |
+| `rox` | ROX index (formula, no categories) | Roca et al., J Crit Care 2016, PMID 27481760; Am J Respir Crit Care Med 2019, PMID 30576221 | [P] |
+| `killip` | Killip classification (A to D) | Killip and Kimball, Am J Cardiol 1967. PMID 6059183 | [P] |
+| `parkland` | Parkland formula (a volume, no categories) | Baxter and Shires, Ann N Y Acad Sci 1968. PMID 4973463 | [P] |
 
 Verified: **[P]** primary full text read, **[A]** abstract only, **[S]** secondary source
 (guideline or later paper). All four are ported from calc-bounds, whose readings the author

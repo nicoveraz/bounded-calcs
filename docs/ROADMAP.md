@@ -37,6 +37,9 @@ message with `Closes #N`.
 | `cha2ds2_vasc` | CHA2DS2-VASc | [P] Lip 2010 (table 2 and methods) | not yet reviewed | 2 |
 | `sf_syncope` | San Francisco Syncope Rule | [P] Quinn 2004 (abstract and results) | not yet reviewed | 1 |
 | `cincinnati_stroke` | Cincinnati Prehospital Stroke Scale | [P] Kothari 1999 (abstract and figure) | not yet reviewed | 1 |
+| `rox` | ROX index (formula, score only) | [P] Roca 2016 and Roca 2019 (definition and cut-off sentences) | not yet reviewed | 2 |
+| `killip` | Killip classification | [P] Killip and Kimball 1967 (the paragraph defining the groups) | not yet reviewed | 1 |
+| `parkland` | Parkland formula (formula, a volume) | [P] Baxter and Shires 1968 (patient studies passage) | not yet reviewed | 3 |
 
 "Reviewed (calc-bounds)" means the readings were accepted by the author, an emergency
 physician, as recorded in `docs/CALCULATOR_NOTES.md` of `nicoveraz/calc-bounds`.
