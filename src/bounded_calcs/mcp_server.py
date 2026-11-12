@@ -41,7 +41,9 @@ INSTRUCTIONS = """\
 Clinical calculators that never assume an unmentioned finding is normal.
 
 Workflow:
-1. list_calculators, then get_schema for the calculator you need.
+1. list_calculators, then get_schema for the calculator you need. get_schema and evaluate
+   answer in a brief form; pass detail="full" for citations, provenance and review notes
+   and the per-component breakdown, when a person asks where something comes from.
 2. Read the note and send to `evaluate` only what it actually documents: present, absent, a
    level, or a number. Leave out (or send "unknown") anything the note does not mention.
    Never fill an unmentioned item as absent or normal. If the note says only that a numeric
@@ -82,32 +84,86 @@ def _get(calculator_id: str):
 
 @server.tool()
 def list_calculators() -> list[dict[str, Any]]:
-    """List the available calculators: id, name, purpose, and what each returns (its decision
-    categories, lowest risk first, or "score only" when it has none)."""
+    """List the available calculators: id, name, what it is for (the first sentence of its
+    purpose; get_schema has the rest), and what each returns (its decision categories, lowest
+    risk first, or "score only" when it has none)."""
     return [
         {
             "id": c.id,
             "name": c.name,
-            "purpose": c.purpose,
+            "purpose": _first_sentence(c.purpose),
             "returns": [k.name for k in c.categories] or "score only",
         }
         for c in CALCS.values()
     ]
 
 
+# Notes that say where a value comes from or what is still to review. A model filling in
+# items does not need them; a person auditing the calculator does (detail="full").
+_PROVENANCE = (
+    "TODO(physician-review)",
+    "REVIEWED(physician)",
+    "Accepted range",
+    "Normal range",
+    "Source read",
+    "Ported from",
+    "Readings reviewed",
+    "Conversion factor",
+)
+DETAILS = ("brief", "full")
+
+
+def _first_sentence(text: str) -> str:
+    head, sep, _ = text.partition(". ")
+    return head + ("." if sep else "")
+
+
+def _check_detail(detail: str) -> None:
+    if detail not in DETAILS:
+        raise ToolError(f"detail must be one of {list(DETAILS)}, got {detail!r}")
+
+
+def _brief_schema(full: dict[str, Any]) -> dict[str, Any]:
+    """The schema without citations, provenance and review notes. Notes that say how to
+    read an item or when the calculator applies stay."""
+
+    def keep(notes: list[str]) -> list[str]:
+        return [n for n in notes if not n.startswith(_PROVENANCE)]
+
+    out = {k: v for k, v in full.items() if k not in ("citation", "references")}
+    out["notes"] = keep(full.get("notes", []))
+    out["items"] = []
+    for item in full["items"]:
+        entry = {k: v for k, v in item.items() if k != "normal_source"}
+        if "notes" in entry:
+            entry["notes"] = keep(entry["notes"])
+            if not entry["notes"]:
+                del entry["notes"]
+        out["items"].append(entry)
+    out["detail"] = 'brief: call get_schema with detail="full" for sources and review notes'
+    return out
+
+
 @server.tool()
-def get_schema(calculator_id: str) -> dict[str, Any]:
+def get_schema(calculator_id: str, detail: str = "brief") -> dict[str, Any]:
     """Describe a calculator: its items and the values each takes (with units and accepted
-    ranges), how points are assigned or the formula used, the decision categories (none for a
-    score-only calculator), the source citation, and open review notes. Read it before
-    calling evaluate: item ids and allowed values come from here."""
-    return _schema(
+    ranges), how points are assigned or the formula used, and the decision categories (none
+    for a score-only calculator). Read it before calling evaluate: item ids and allowed
+    values come from here.
+
+    detail="brief" (the default) is what filling in the items needs. detail="full" adds the
+    source citations, where each range comes from, and the open review notes."""
+    _check_detail(detail)
+    full = _schema(
         _get(calculator_id), normal_ranges=SITE_RANGES, units=SITE_UNITS, require_units=True
     )
+    return full if detail == "full" else _brief_schema(full)
 
 
 @server.tool()
-def evaluate(calculator_id: str, findings: dict[str, Any] | None = None) -> dict[str, Any]:
+def evaluate(
+    calculator_id: str, findings: dict[str, Any] | None = None, detail: str = "brief"
+) -> dict[str, Any]:
     """Evaluate a calculator on what is actually known.
 
     `findings` maps item ids to values: "present" / "absent" for boolean items, one of the
@@ -122,9 +178,13 @@ def evaluate(calculator_id: str, findings: dict[str, Any] | None = None) -> dict
     the score range, and the decisive unknowns: the only items worth asking the clinician
     about, each with what the result would be for each possible answer. For a score-only
     calculator the result is the score itself and there are no categories.
+
+    detail="brief" (the default) leaves out the per-component breakdown; detail="full"
+    includes it.
     """
+    _check_detail(detail)
     try:
-        return _evaluate(
+        result = _evaluate(
             _get(calculator_id),
             findings or {},
             normal_ranges=SITE_RANGES,
@@ -133,6 +193,9 @@ def evaluate(calculator_id: str, findings: dict[str, Any] | None = None) -> dict
         )
     except InputError as e:
         raise ToolError(str(e)) from None
+    if detail == "brief":  # the per-component breakdown is for audit, not for the next step
+        result.pop("components", None)
+    return result
 
 
 def load_site_ranges(path: str | Path) -> dict[str, Any]:

@@ -122,3 +122,62 @@ def test_bad_site_units_file_stops_the_server(tmp_path, content):
         capture_output=True, text=True, timeout=60,
     )  # fmt: skip
     assert done.returncode != 0 and "bounded-calcs-mcp:" in done.stderr
+
+
+# --- brief and full answers (the tool functions called directly) ---------------------------
+
+
+def test_brief_schema_keeps_what_filling_in_needs_and_drops_provenance():
+    from bounded_calcs import mcp_server as m
+
+    for cid in load_builtin():
+        full, brief = m.get_schema(cid, detail="full"), m.get_schema(cid)
+        assert "citation" in full and "citation" not in brief and "references" not in brief
+        for key in ("id", "name", "purpose", "components", "categories", "input_rules"):
+            assert brief[key] == full[key], (cid, key)
+        assert [i["id"] for i in brief["items"]] == [i["id"] for i in full["items"]]
+        for b, f in zip(brief["items"], full["items"]):
+            for key in ("values", "unit", "accepts", "other_units", "unit_labels", "normal"):
+                assert b.get(key) == f.get(key), (cid, b["id"], key)
+        notes = brief["notes"] + [n for i in brief["items"] for n in i.get("notes", [])]
+        assert not any(n.startswith(("TODO(physician-review)", "REVIEWED(physician)"))
+                       for n in notes), cid
+        assert "full" in brief["detail"]
+
+
+def test_brief_schema_keeps_notes_on_how_to_read_an_item():
+    from bounded_calcs import mcp_server as m
+
+    brief = m.get_schema("pecarn_head_under2")
+    assert any(n.startswith("Applies to") for n in brief["notes"])
+    assert any("notes" in i for i in brief["items"])
+
+
+def test_brief_result_differs_from_full_only_by_the_component_breakdown():
+    from bounded_calcs import mcp_server as m
+
+    findings = {"confusion": "absent", "age": 70}
+    full = m.evaluate("curb65", findings, detail="full")
+    brief = m.evaluate("curb65", findings)
+    assert full["components"] and "components" not in brief
+    assert brief == {k: v for k, v in full.items() if k != "components"}
+
+
+def test_unknown_detail_is_a_tool_error():
+    from mcp.server.mcpserver.exceptions import ToolError
+
+    from bounded_calcs import mcp_server as m
+
+    with pytest.raises(ToolError, match="brief"):
+        m.get_schema("curb65", detail="short")
+    with pytest.raises(ToolError, match="brief"):
+        m.evaluate("curb65", {}, detail="short")
+
+
+def test_list_gives_the_first_sentence_of_each_purpose():
+    from bounded_calcs import mcp_server as m
+
+    calcs = load_builtin()
+    for row in m.list_calculators():
+        purpose = calcs[row["id"]].purpose
+        assert purpose.startswith(row["purpose"].rstrip(".")) and ". " not in row["purpose"]
