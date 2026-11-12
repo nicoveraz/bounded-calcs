@@ -43,8 +43,8 @@ Python 3.11 or later. The MCP server can also run without installing anything fi
 | id | Calculator | Source | Verified |
 |---|---|---|---|
 | `heart` | HEART score (low / moderate / high) | Six et al., Neth Heart J 2008. PMID 18665203 | [P] |
-| `wells_pe` | Wells criteria for PE, two-tier (unlikely / likely) | Wells et al., Thromb Haemost 2000. PMID 10744147 | [A], [S] |
-| `perc` | PERC rule (negative / positive) | Kline et al., J Thromb Haemost 2004. PMID 15304025 | [A] |
+| `wells_pe` | Wells criteria for PE, two-tier (unlikely / likely) | Wells et al., Thromb Haemost 2000. PMID 10744147; cut-off and item table from van Belle et al. 2006 | [A], [P], [S] |
+| `perc` | PERC rule (negative / positive) | Kline et al., J Thromb Haemost 2004. PMID 15304025 | [P] |
 | `curb65` | CURB-65 (low / moderate / high) | Lim et al., Thorax 2003. PMID 12728155 | [P] |
 | `qsofa` | qSOFA (negative / positive) | Seymour et al., JAMA 2016. PMID 26903335; Sepsis-3 criteria | [A], [P] |
 | `pecarn_head_under2` | PECARN head injury rule, under 2 years (CT not recommended / observation versus CT / CT recommended) | Kuppermann et al., Lancet 2009. PMID 19758692 | [P] |
