@@ -1,0 +1,154 @@
+id: glasgow_blatchford
+name: Glasgow-Blatchford bleeding score
+version: 1
+purpose: >-
+  Need for treatment (transfusion, endoscopic or surgical intervention) in adults presenting
+  with acute upper gastrointestinal haemorrhage, from findings available at first assessment.
+citation: >-
+  Blatchford O, Murray WR, Blatchford M. A risk score to predict need for treatment for
+  upper-gastrointestinal haemorrhage. Lancet 2000;356(9238):1318-1321.
+  doi:10.1016/S0140-6736(00)02816-6. PMID 11073021. [P]
+higher_is_higher_risk: true
+notes:
+  - "Source read 2026-11-12: full text (PDF from the author). Table 1 was read from the page
+    image, because the text layer of the PDF loses the 'greater than or equal' signs."
+  - "Score only: the paper gives the score (0 to 23) and no cut-off on it. Its 'fast-track'
+    screening tool is a separate four-item checklist (urea < 6.5 mmol/L, haemoglobin above the
+    lowest scoring band, systolic pressure 110 mmHg or higher, pulse < 100 /min), not a
+    cut-off on the full score. A cut-off (for example score 0 for outpatient management) has
+    to come from a guideline or validation paper that was opened; none has been yet."
+  - "The paper does not define 'hepatic disease', 'cardiac failure', 'melaena' or 'syncope'
+    beyond the words of Table 1."
+
+items:
+  - id: urea
+    label: Blood urea
+    type: numeric
+    kind: measurement
+    unit: mmol/L
+    units:
+      bun_mg/dL: {divide_by: 2.8014, label: "urea nitrogen (BUN) in mg/dL"}
+      urea_mg/dL: {divide_by: 6.006, label: "urea (not urea nitrogen) in mg/dL"}
+    accepts: [1, 60]
+    normal: [2.5, 8]
+    notes:
+      - Accepted range, conversion factors and normal range as in curb65 (the same item).
+      - "Normal range 2.5 to 8 mmol/L, used when the source says only that it is normal. It
+        reaches above the 6.5 mmol/L at which this score starts to give points, so a urea
+        reported only as normal leaves 0 to 3 points open and the value is asked for."
+  - id: haemoglobin
+    label: Haemoglobin
+    type: numeric
+    kind: measurement
+    unit: g/L
+    units:
+      g/dL: {multiply_by: 10, label: "g/dL"}
+    accepts: [20, 250]
+    notes:
+      - "TODO(physician-review): the accepted range, 20 to 250 g/L (2 to 25 g/dL), is not
+        from the paper; it only catches impossible values and unit mistakes (a value of 13.5
+        sent as g/L is far below any plausible haemoglobin but inside this range, so the unit
+        must be stated). The alternative is a narrower range."
+      - "TODO(physician-review): Table 1 prints the lowest band for men as '< 10.0' under the
+        heading 'Haemoglobin (g/L) for men'; it is read as < 100 g/L (10.0 g/dL), which is
+        what the band above it (>= 100 < 120) and the women's table (< 100) require. The
+        alternative reading, < 10 g/L, would leave 10 to 99 g/L without points."
+      - "TODO(physician-review): the top band gives 0 points at 130 g/L or more for men and
+        120 g/L or more for women, from Table 1 (the scoring bands start at '>= 120 < 130' and
+        '>= 100 < 120'). The text of the fast-track tool says 'more than 130 g/L for men or
+        120 g/L for women'; the two differ only at exactly 130 and 120 g/L."
+  - id: sex
+    label: Sex (the haemoglobin bands differ for men and women)
+    type: ordinal
+    kind: finding
+    levels: [male, female]
+  - id: sbp
+    label: Systolic blood pressure
+    type: numeric
+    kind: measurement
+    unit: mmHg
+    accepts: [50, 250]
+    normal: [101, 139]
+    notes:
+      - Accepted range and normal range as in curb65 (the same item; taken from calc-bounds).
+      - "Normal range 101 to 139 mmHg, used when the source says only that it is normal. It
+        reaches below the 110 mmHg under which this score gives a point, so a pressure reported
+        only as normal leaves 0 or 1 point open and the value is asked for."
+      - "Table 1 gives whole-number bands (100-109: 1, 90-99: 2, < 90: 3). They are written
+        here as < 110, < 100 and < 90, so a value between two whole numbers (109.5) falls in
+        the lower band's score."
+  - id: heart_rate
+    label: Pulse
+    type: numeric
+    kind: measurement
+    unit: /min
+    accepts: [20, 250]
+    normal: [60, 99]
+    notes:
+      - Accepted range as in the other calculators that use this item (taken from calc-bounds).
+      - "Normal range 60 to 99 /min, used when the source says only that it is normal. Taken
+        from calc-bounds (params.py, absent_means), reviewed by the author on 2026-09-27; it
+        does not cross this score's threshold (>= 100 /min)."
+  - id: melaena
+    label: Presentation with melaena
+    type: boolean
+    kind: finding
+  - id: syncope
+    label: Presentation with syncope
+    type: boolean
+    kind: finding
+  - id: hepatic_disease
+    label: Hepatic disease
+    type: boolean
+    kind: finding
+  - id: cardiac_failure
+    label: Cardiac failure
+    type: boolean
+    kind: finding
+
+components:
+  - id: urea
+    label: Blood urea
+    rule: bands
+    item: urea
+    bands:
+      - {gte: 25, points: 6}
+      - {gte: 10, points: 4}
+      - {gte: 8, points: 3}
+      - {gte: 6.5, points: 2}
+      - {points: 0}
+  - id: haemoglobin
+    label: Haemoglobin, by sex
+    rule: bands_by
+    item: haemoglobin
+    by: sex
+    bands:
+      male:
+        - {gte: 130, points: 0}
+        - {gte: 120, points: 1}
+        - {gte: 100, points: 3}
+        - {points: 6}
+      female:
+        - {gte: 120, points: 0}
+        - {gte: 100, points: 1}
+        - {points: 6}
+  - id: sbp
+    label: Systolic blood pressure
+    rule: bands
+    item: sbp
+    bands:
+      - {lt: 90, points: 3}
+      - {lt: 100, points: 2}
+      - {lt: 110, points: 1}
+      - {points: 0}
+  - id: heart_rate
+    label: Pulse >= 100 /min
+    rule: bands
+    item: heart_rate
+    bands:
+      - {gte: 100, points: 1}
+      - {points: 0}
+  - {id: melaena, label: Presentation with melaena, rule: present, item: melaena, points: 1}
+  - {id: syncope, label: Presentation with syncope, rule: present, item: syncope, points: 2}
+  - {id: hepatic_disease, label: Hepatic disease, rule: present, item: hepatic_disease, points: 2}
+  - {id: cardiac_failure, label: Cardiac failure, rule: present, item: cardiac_failure, points: 2}
