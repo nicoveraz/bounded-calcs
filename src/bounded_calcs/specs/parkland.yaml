@@ -1,0 +1,58 @@
+id: parkland
+name: Parkland formula (Baxter) for burn resuscitation volume
+version: 1
+purpose: >-
+  The volume of lactated Ringer's solution that Baxter and Shires gave in the first 24 hours
+  to adults with major burns: 4 mL per kg of body weight per percent of body surface burned.
+  The result is a computed quantity with its range, not an order; resuscitation is adjusted
+  to the patient's response.
+citation: >-
+  Baxter CR, Shires T. Physiological response to crystalloid resuscitation of severe burns.
+  Ann N Y Acad Sci 1968;150(3):874-894. doi:10.1111/j.1749-6632.1968.tb14738.x. PMID 4973463.
+  Patient studies (the volume given). [P]
+higher_is_higher_risk: true
+notes:
+  - "The source: 'The volume of fluid administered for the resuscitation of these patients was
+    calculated to be 4cc (3.5-4.5) of lactated Ringer's/ % burn/kg body weight given in 24
+    hr.' This calculator uses 4; the source's own range is 3.5 to 4.5."
+  - "The patients in the source were 11 selected patients with burns of 30% to 85% of total
+    body surface area, mostly full thickness. The calculator does not check this."
+  - "TODO(physician-review): the split of the 24-hour volume over time (a share in the first 8
+    hours) is not stated in the parts of the source that were read, so it is not computed
+    here. It needs a source before it is added."
+  - "TODO(physician-review): which burns count towards the percentage (partial and full
+    thickness, not superficial) is not stated in the parts read. Reading chosen: the caller
+    sends the percentage as assessed clinically."
+  - "Dose-type output, allowed by the author's decision of 2026-11-11: the number and its
+    range only."
+  - "Source read from a PDF supplied by the author on 2026-11-12: the passage on the patient
+    studies. The paper was not read in full."
+
+items:
+  - id: weight
+    label: Body weight
+    type: numeric
+    kind: measurement
+    unit: kg
+    accepts: [1, 300]
+    units:
+      lb: {multiply_by: 0.45359237, label: "pounds"}
+    notes:
+      - "1 lb is 0.45359237 kg by definition."
+      - "TODO(physician-review): accepted range 1 to 300 kg was chosen only to reject impossible
+        values; no source gives it. The source's patients were adults; whether the calculator
+        should refuse children's weights is the author's decision."
+  - id: tbsa_burned
+    label: Percentage of total body surface area burned
+    type: numeric
+    kind: measurement
+    unit: "%"
+    accepts: [0, 100]
+
+formula:
+  expression: 4 * weight * tbsa_burned
+  unit: mL in 24 h
+  decimals: 0
+  monotonic:
+    weight: increasing
+    tbsa_burned: increasing
