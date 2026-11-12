@@ -1,0 +1,81 @@
+id: killip
+name: Killip classification
+version: 1
+purpose: >-
+  Clinical severity of heart failure in a patient with acute myocardial infarction, from the
+  examination: no heart failure, heart failure, severe heart failure (pulmonary oedema), or
+  cardiogenic shock. The most severe group whose signs are present applies.
+citation: >-
+  Killip T, Kimball JT. Treatment of myocardial infarction in a coronary care unit: a two year
+  experience with 250 patients. Am J Cardiol 1967;20(4):457-464.
+  doi:10.1016/0002-9149(67)90023-9. PMID 6059183. Methods (the four groups A to D). [P]
+higher_is_higher_risk: true
+notes:
+  - "The source names four groups: A, no heart failure (no clinical signs of cardiac
+    decompensation); B, heart failure (diagnostic criteria include rales, S3 gallop and venous
+    hypertension); C, severe heart failure (frank pulmonary oedema); D, cardiogenic shock
+    (hypotension, systolic pressure of 90 mmHg or less, and evidence of peripheral
+    vasoconstriction such as oliguria, cyanosis and diaphoresis)."
+  - "The groups are widely written as classes I to IV, in the same order; the source uses the
+    letters."
+  - "The score counts the groups whose signs are present (0 to 3) and has no meaning of its
+    own; the category is the most severe group present."
+  - "Source read from a PDF supplied by the author on 2026-11-12 (a scan with a text layer):
+    the paragraph that defines the groups."
+
+items:
+  - id: rales
+    label: Rales
+    type: boolean
+    kind: finding
+  - id: s3_gallop
+    label: S3 gallop
+    type: boolean
+    kind: finding
+  - id: venous_hypertension
+    label: Venous hypertension (raised jugular venous pressure)
+    type: boolean
+    kind: finding
+    notes:
+      - "TODO(physician-review): the source says 'diagnostic criteria include rales, S3 gallop
+        and venous hypertension' without saying whether one sign is enough. Reading chosen:
+        any one of the three makes group B. The alternative is that all three are needed."
+  - id: frank_pulmonary_edema
+    label: Frank pulmonary oedema
+    type: boolean
+    kind: finding
+  - id: cardiogenic_shock
+    label: >-
+      Cardiogenic shock: hypotension (systolic pressure of 90 mmHg or less) with evidence of
+      peripheral vasoconstriction such as oliguria, cyanosis or diaphoresis
+    type: boolean
+    kind: finding
+
+components:
+  - id: heart_failure
+    label: Heart failure (rales, S3 gallop or venous hypertension)
+    rule: any_of
+    conditions:
+      - {item: rales}
+      - {item: s3_gallop}
+      - {item: venous_hypertension}
+    points: 1
+    group: heart_failure
+  - {id: pulmonary_edema, label: Frank pulmonary oedema, rule: present, item: frank_pulmonary_edema, points: 1, group: pulmonary_edema}
+  - {id: cardiogenic_shock, label: Cardiogenic shock, rule: present, item: cardiogenic_shock, points: 1, group: shock}
+
+categories:
+  - name: a_no_heart_failure
+    label: "A: no heart failure (class I)"
+  - name: b_heart_failure
+    label: "B: heart failure (class II)"
+    group: heart_failure
+    min: 1
+  - name: c_severe_heart_failure
+    label: "C: severe heart failure, frank pulmonary oedema (class III)"
+    group: pulmonary_edema
+    min: 1
+  - name: d_cardiogenic_shock
+    label: "D: cardiogenic shock (class IV)"
+    group: shock
+    min: 1

@@ -1,0 +1,78 @@
+id: rox
+name: ROX index
+version: 1
+purpose: >-
+  In adults with pneumonia and acute hypoxaemic respiratory failure treated with high-flow
+  nasal cannula (HFNC): the ratio of SpO2/FiO2 to respiratory rate. Lower values go with HFNC
+  failure and the need for intubation. The result is the index; the cut-offs depend on the time
+  since HFNC was started and are listed in the notes.
+citation: >-
+  Roca O, Messika J, Caralt B, et al. Predicting success of high-flow nasal cannula in
+  pneumonia patients with hypoxemic respiratory failure: the utility of the ROX index. J Crit
+  Care 2016;35:200-205. doi:10.1016/j.jcrc.2016.05.022. PMID 27481760. Definition of the index
+  and the cut-off of 4.88. [P]
+references:
+  - "Roca O, Caralt B, Messika J, et al. An index combining respiratory rate and oxygenation to
+    predict outcome of nasal high-flow therapy. Am J Respir Crit Care Med
+    2019;199(11):1368-1376. doi:10.1164/rccm.201803-0589OC. PMID 30576221. Validation: the
+    index is 'the ratio of SpO2/FIO2 (%) to RR (breaths/min)'; a ROX of 4.88 or more at 2, 6
+    or 12 h was associated with a lower risk of intubation; a ROX below 2.85, 3.47 and 3.85 at
+    2, 6 and 12 h respectively predicted HFNC failure. [P]"
+higher_is_higher_risk: false
+notes:
+  - "ROX = (SpO2 / FiO2) / respiratory rate, with SpO2 in % and FiO2 as a fraction (Roca 2016
+    and 2019)."
+  - "Cut-offs from the sources, by time since HFNC was started: 4.88 or more at 2, 6 or 12 h,
+    lower risk of intubation; below 2.85 at 2 h, below 3.47 at 6 h, below 3.85 at 12 h,
+    predictors of HFNC failure."
+  - "TODO(physician-review): score only, because the cut-offs differ by time point and one
+    calculator cannot hold three sets of categories. The alternative is one calculator per
+    time point (2, 6 and 12 h), each with its own categories."
+  - "TODO(physician-review): the result is rounded to 2 decimals, as the sources print their
+    cut-offs; they do not say how the index itself is rounded."
+  - "Sources read from PDFs supplied by the author on 2026-11-12: the abstracts and the
+    sentences that define the index and state the cut-offs. The papers were not read in full."
+
+items:
+  - id: spo2_on_oxygen
+    label: Oxygen saturation by pulse oximetry (SpO2) on high-flow oxygen
+    type: numeric
+    kind: measurement
+    unit: "%"
+    accepts: [50, 100]
+    notes:
+      - "Accepted range 50 to 100 %, the range calc-bounds uses for oxygen saturation. A
+        separate item from spo2 (PERC), which is on room air."
+  - id: fio2
+    label: Fraction of inspired oxygen (FiO2)
+    type: numeric
+    kind: measurement
+    unit: fraction
+    accepts: [0.21, 1]
+    units:
+      percent: {divide_by: 100, label: "FiO2 written as a percentage (21 to 100)"}
+    notes:
+      - "As a fraction, 0.21 (room air) to 1. A value written as a percentage must be sent with
+        the unit 'percent': 60 sent alone is refused, not read as 0.60."
+  - id: resp_rate
+    label: Respiratory rate
+    type: numeric
+    kind: measurement
+    unit: /min
+    accepts: [4, 60]
+    normal: [12, 20]
+    notes:
+      - Accepted range taken from calc-bounds (docs/CALCULATOR_NOTES.md, parameter modelling choices).
+      - "Normal range 12 to 20 /min, used when the source says only that it is
+        normal. Taken from calc-bounds (params.py, absent_means), reviewed by the author on
+        2026-09-27; it crosses no threshold of any calculator that uses this item."
+
+formula:
+  where:
+    spo2_fio2: spo2_on_oxygen / fio2
+  expression: spo2_fio2 / resp_rate
+  decimals: 2
+  monotonic:
+    spo2_on_oxygen: increasing
+    fio2: decreasing
+    resp_rate: decreasing

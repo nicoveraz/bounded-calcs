@@ -419,10 +419,18 @@ def parse(data: Any) -> Calculator:
     return calc
 
 
+# The C loader reads the same YAML several times faster; it is there when PyYAML was built
+# with libyaml (the usual wheels are) and gives the same result as the pure-Python one.
+_YamlLoader = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
+
+
+def _read_yaml(text: str) -> Any:
+    return yaml.load(text, Loader=_YamlLoader)  # noqa: S506 (a safe loader, either way)
+
+
 def load_file(path: str | Path) -> Calculator:
     """Load one spec from a YAML file."""
-    with open(path, encoding="utf-8") as f:
-        return parse(yaml.safe_load(f))
+    return parse(_read_yaml(Path(path).read_text(encoding="utf-8")))
 
 
 @functools.cache
@@ -431,7 +439,7 @@ def _builtin() -> tuple[Calculator, ...]:
     out: dict[str, Calculator] = {}
     for entry in resources.files("bounded_calcs.specs").iterdir():
         if entry.name.endswith(".yaml"):
-            calc = parse(yaml.safe_load(entry.read_text(encoding="utf-8")))
+            calc = parse(_read_yaml(entry.read_text(encoding="utf-8")))
             if entry.name != f"{calc.id}.yaml":
                 raise SpecError(f"{entry.name}: file name must be '{calc.id}.yaml' (its id)")
             out[calc.id] = calc
