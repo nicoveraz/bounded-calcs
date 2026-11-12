@@ -26,7 +26,7 @@ from collections.abc import Mapping
 from types import ModuleType
 from typing import Any
 
-from bounded_calcs.engine.rules import any_of, bands, count, levels, present
+from bounded_calcs.engine.rules import any_of, bands, bands_by, count, levels, present
 from bounded_calcs.engine.state import State
 from bounded_calcs.model import Calculator, Component, Item
 
@@ -35,6 +35,7 @@ RULES: dict[str, ModuleType] = {
     "absent": present,
     "levels": levels,
     "bands": bands,
+    "bands_by": bands_by,
     "any_of": any_of,
     "count": count,
 }

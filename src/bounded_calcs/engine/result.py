@@ -289,6 +289,13 @@ def schema(
             for c in calc.categories
         ],
         "score_only": not calc.categories,
+        "score_is": (
+            "the result of the formula"
+            if calc.formula is not None
+            else "the highest number of points any component gives"
+            if calc.combine == "highest"
+            else "the sum of the points of the components"
+        ),
         "notes": list(calc.notes),
         "input_rules": (
             "Pass only what is documented or known. Omit an item, or send 'unknown', when the "

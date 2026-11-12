@@ -88,7 +88,7 @@ src/bounded_calcs/
   formula.py      formula calculators: the expression language and its checks (no eval)
   engine/         the bounding engine, one job per module
     inputs.py       what a caller may send (words, numbers, ranges, units) -> the engine's state
-    rules/          one module per scoring rule (present, levels, bands, any_of, count): each
+    rules/          one module per scoring rule (present, levels, bands, bands_by, any_of, count): each
                     reads its own YAML keys and computes its own points
     bounds.py       reachable scores and categories; which unknown items can change them
     formula_bounds.py  the same for formula calculators (result range from the input ranges)

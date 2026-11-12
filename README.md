@@ -229,9 +229,11 @@ decisive unknowns, and never fill judgment items itself.
 Each calculator is one YAML file in `src/bounded_calcs/specs/`: items (type, kind, levels or
 unit, a question to ask), components (how items become points) or a formula, and categories
 (left out for a score-only calculator). Component
-rules: `present`, `absent`, `levels`, `bands` (numeric thresholds), `count` (number of present
+rules: `present`, `absent`, `levels`, `bands` (numeric thresholds), `bands_by` (thresholds that depend on
+another item, such as haemoglobin by sex), `count` (number of present
 items, with an optional override item), and `any_of` (points if any of several conditions is
-met, such as CURB-65's "SBP < 90 or DBP <= 60"). Points may be negative. Every item belongs to
+met, such as CURB-65's "SBP < 90 or DBP <= 60"). Points may be negative. The score is the
+sum of the components, or with `combine: highest` the highest of them (staging systems). Every item belongs to
 exactly one component; that is what makes the bounds exact rather than approximate. The
 loader is strict: misspelled keys, bands that can never match and text that YAML misread are
 errors.

@@ -1,7 +1,8 @@
 """Bounds: every score and category the known and unknown items still allow.
 
-Exact, with no sampling: components are independent, so the reachable scores are the sumset
-of each component's reachable points (which each rule module computes).
+Exact, with no sampling: components are independent, so the reachable scores are every
+combination of each component's reachable points (which each rule module computes): their
+sums or, for a calculator with `combine: highest`, the highest of them.
 """
 
 from __future__ import annotations
@@ -25,7 +26,10 @@ def _domain(calc: Calculator, item: Item, state: State) -> list[Any]:
 
 
 def _add(calc: Calculator, comp: Component, base: Points, p: float) -> Points:
-    """`base` plus `p` points of `comp`: in the total and in the component's group."""
+    """`base` with `p` points of `comp` combined in: added to the total and to the
+    component's group or, for a `highest` calculator, the higher of the two."""
+    if calc.combine == "highest":
+        return (max(base[0], p),)
     out = list(base)
     out[0] += p
     if comp.group is not None:
